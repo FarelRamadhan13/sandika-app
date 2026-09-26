@@ -1,99 +1,221 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// System prompt for Sokratic AI
-const SYSTEM_PROMPT = `Kamu adalah asisten investigasi jurnalistik yang menggunakan Metode Sokratik. 
-Siswa sedang menganalisis berita palsu tentang klaim penurunan suhu global. 
-
-Celah-celah kebohongan dalam artikel:
-1. Grafik memanipulasi sumbu Y (dimulai dari 14.5, bukan 0) agar penurunan terlihat dramatis
-2. Prof. Dr. Andi Pratama dan Institut Klimatologi Nusantara tidak ada
-3. Data hanya mengambil 5 tahun (cherry-picking) padahal tren iklim perlu data puluhan tahun
-4. Menyerang motivasi ilmuwan lain (ad hominem) 
-5. Mengklaim penghijauan lokal menurunkan suhu global (false cause)
-6. Menggunakan survei opini publik sebagai bukti ilmiah (bandwagon)
-7. Kutipan dipotong sehingga menghilangkan konteks penting (bias kutipan)
-8. Mendistorsi posisi ilmuwan iklim sebagai "teori usang" (straw man)
-
-ATURAN KETAT:
-- JANGAN pernah berikan jawaban secara langsung
-- Selalu balas dengan pertanyaan penuntun sesuai Metode Sokratik
-- Tuntun siswa untuk menemukan sendiri kejanggalan dalam artikel
-- Gunakan bahasa Indonesia yang ramah dan suportif
-- Jika siswa benar-benar bingung, berikan petunjuk samar, BUKAN jawaban
-- Puji upaya siswa ketika mereka menemukan sesuatu`;
-
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { message, history } = body;
+    const body = await request.json().catch(() => ({}));
+    const {
+      message = "",
+      history = [],
+      scenarioTitle,
+      scenarioCategory,
+      articleHeadline,
+      articleSource,
+      articleAuthor,
+      fallacies = [],
+      hints = [],
+      graphTitle,
+      misleadingYMin,
+      correctYMin,
+    } = body;
 
-    // Try Gemini API first
-    const apiKey = process.env.GOOGLE_GEMINI_API_KEY;
-    
-    if (apiKey) {
-      try {
-        const { GoogleGenerativeAI } = await import("@google/generative-ai");
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-        const chat = model.startChat({
-          history: [
-            {
-              role: "user",
-              parts: [{ text: "Mulai sesi investigasi." }],
-            },
-            {
-              role: "model",
-              parts: [{ text: "Halo, Investigator! Saya siap membantumu menganalisis artikel ini dengan pertanyaan-pertanyaan penuntun. Apa yang menarik perhatianmu?" }],
-            },
-            ...(history || []).map(
-              (msg: { role: string; content: string }) => ({
-                role: msg.role === "assistant" ? "model" : "user",
-                parts: [{ text: msg.content }],
-              })
-            ),
-          ],
-          systemInstruction: SYSTEM_PROMPT,
-        });
-
-        const result = await chat.sendMessage(message);
-        const responseText = result.response.text();
-
-        return NextResponse.json({ response: responseText });
-      } catch (error) {
-        console.error("Gemini API error:", error);
-        // Fall through to mock response
-      }
+    if (!message.trim()) {
+      return NextResponse.json(
+        { error: "Pesan tidak boleh kosong" },
+        { status: 400 }
+      );
     }
 
-    // Mock Sokratic response if no API key
+    const apiKey =
+      process.env.GOOGLE_GEMINI_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+
+    // Dynamically construct Socratic System Instruction based on the active scenario
+    const dynamicSystemPrompt = `Kamu adalah Asisten Investigasi Jurnalistik dan Tutor Berpikir Kritis cerdas untuk platform edukasi anti-hoax SANDIKA (Metode Sokratik).
+
+KONTEKS STUDI KASUS YANG SEDANG DISELIDIKI SISWA:
+- Judul Skenario: "${scenarioTitle || "Analisis Berita Investigasi"}"
+- Kategori Kasus: "${scenarioCategory || "Jurnalisme & Literasi Kritis"}"
+- Headline Artikel: "${articleHeadline || "Berita Investigasi"}"
+- Sumber & Penulis Fiktif: ${articleSource || "Media Berita"} oleh ${articleAuthor || "Wartawan"}
+- Grafik Data: "${graphTitle || "Visualisasi Data"}" (Manipulasi: Sumbu Y dimulai dari angka ${
+      misleadingYMin ?? "bukan 0"
+    } sehingga perubahan terlihat dramatis, padahal baseline objektif harus mulai dari ${
+      correctYMin ?? 0
+    })
+${
+  Array.isArray(fallacies) && fallacies.length > 0
+    ? `- Celah Kebohongan & Falasi Logika dalam Artikel:\n${fallacies
+        .map(
+          (f: any, i: number) =>
+            `  ${i + 1}. [${f.type || "falasi"}] "${f.text}" — ${f.explanation || "Kecacatan penalaran"}`
+        )
+        .join("\n")}`
+    : ""
+}
+${
+  Array.isArray(hints) && hints.length > 0
+    ? `- Petunjuk Kasus Ini:\n${hints.map((h: string) => `  - ${h}`).join("\n")}`
+    : ""
+}
+
+TUGAS DAN PRINSIP UTAMA:
+1. BANTU PELAJAR MENYELESAIKAN INVESTIGASI: Bimbing pelajar agar berhasil mendeteksi falasi logika, manipulasi grafik, dan misinformasi dalam skenario di atas.
+2. METODE SOKRATIK: JANGAN PERNAH membocorkan jawaban secara langsung (misal: jangan langsung sebut 'jawaban paragraf 2 adalah cherry-picking'). Sebaliknya, gunakan pertanyaan pemantik nalar yang menuntun mereka melihat kejanggalan sendiri.
+3. SPESIFIK KE TOPIK: Gunakan nama tokoh, kutipan, klaim, atau angka grafik spesifik dari skenario yang sedang dianalisis untuk menunjukkan bahwa kamu benar-benar mengamati kasus ini bersamanya.
+4. NADA BICARA: Ramah, suportif, kritis, dan memotivasi seperti mentor detektif atau jurnalis senior yang membimbing juniornya.
+5. JIKA SISWA BINGUNG ATAU MINTA PETUNJUK: Berikan panduan bertahap (clue) dari level umum menuju petunjuk yang lebih fokus.
+6. FORMAT JAWABAN: Pertahankan respons tetap ringkas dan padat (1-2 paragraf pendek ditambah 1 pertanyaan pemantik nalar) agar dialog mengalir dinamis.`;
+
+    if (apiKey) {
+      const modelsToTry = ["gemini-2.5-flash", "gemini-flash-latest"];
+      let responseText: string | null = null;
+      let lastError: any = null;
+
+      const { GoogleGenerativeAI } = await import("@google/generative-ai");
+      const genAI = new GoogleGenerativeAI(apiKey);
+
+      // Clean and format history to ensure strictly alternating user/model turns
+      const formattedHistory: { role: string; parts: { text: string }[] }[] = [];
+      if (Array.isArray(history)) {
+        for (const msg of history) {
+          if (!msg || !msg.content) continue;
+          const role =
+            msg.role === "assistant" || msg.role === "model" ? "model" : "user";
+
+          // The very first history turn must be from 'user'
+          if (formattedHistory.length === 0 && role !== "user") {
+            continue;
+          }
+
+          // Avoid consecutive identical roles
+          if (
+            formattedHistory.length > 0 &&
+            formattedHistory[formattedHistory.length - 1].role === role
+          ) {
+            continue;
+          }
+
+          formattedHistory.push({
+            role,
+            parts: [{ text: msg.content }],
+          });
+        }
+      }
+
+      // If trailing message is 'user', pop it because sendMessage(message) will be the next 'user' turn
+      if (
+        formattedHistory.length > 0 &&
+        formattedHistory[formattedHistory.length - 1].role === "user"
+      ) {
+        formattedHistory.pop();
+      }
+
+      for (const modelName of modelsToTry) {
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: dynamicSystemPrompt,
+            generationConfig: {
+              temperature: 0.75,
+            },
+          });
+
+          const chat = model.startChat({
+            history: formattedHistory,
+          });
+
+          const result = await chat.sendMessage(message);
+          responseText = result.response.text();
+          if (responseText) break;
+        } catch (err) {
+          lastError = err;
+          console.warn(`Gemini chat model ${modelName} error:`, err);
+        }
+      }
+
+      if (responseText) {
+        return NextResponse.json({
+          response: responseText,
+          success: true,
+          modelUsed: "gemini-2.5-flash",
+        });
+      }
+
+      console.error("All Gemini chat models failed:", lastError);
+    }
+
+    // Dynamic fallback Socratic response if Gemini is unavailable
+    const contextualFallback = getContextualSocraticFallback(
+      message,
+      scenarioTitle,
+      hints
+    );
+
     return NextResponse.json({
-      response: getMockResponse(message),
+      response: contextualFallback,
+      isFallback: true,
+      success: true,
     });
-  } catch (error) {
-    console.error("Chat API error:", error);
+  } catch (error: any) {
+    console.error("Chat API top-level error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error: "Terjadi kesalahan pada sistem asisten AI",
+        details: error?.message,
+      },
       { status: 500 }
     );
   }
 }
 
-function getMockResponse(message: string): string {
+function getContextualSocraticFallback(
+  message: string,
+  scenarioTitle?: string,
+  hints: string[] = []
+): string {
   const lower = message.toLowerCase();
 
-  if (lower.includes("grafik") || lower.includes("sumbu") || lower.includes("data")) {
-    return "Menarik bahwa kamu memperhatikan grafiknya! Coba lihat lebih teliti — dari angka berapa sumbu Y dimulai? Apakah itu cara yang jujur untuk menampilkan data? Apa yang terjadi jika kita mulai dari angka nol?";
-  }
-  if (lower.includes("profesor") || lower.includes("andi") || lower.includes("universitas")) {
-    return "Pertanyaan bagus tentang sumbernya! Apakah kamu sudah mencoba memverifikasi apakah Prof. Andi Pratama dan Universitas Nusantara benar-benar ada? Coba gunakan alat Pelacakan Balik untuk mencari tahu!";
-  }
-  if (lower.includes("logika") || lower.includes("argumen") || lower.includes("falasi")) {
-    return "Kamu mulai melihat kejanggalan dalam argumentasi! Coba perhatikan — apakah artikel menyerang argumen ilmuwan lain, atau menyerang orangnya? Apa bedanya kedua pendekatan tersebut?";
-  }
-  if (lower.includes("bingung") || lower.includes("bantuan") || lower.includes("tidak tahu")) {
-    return "Tidak apa-apa merasa bingung — itu bagian dari proses belajar! 💡 Coba mulai dari hal paling mendasar: lihat grafik yang ada di artikel. Apakah skalanya terlihat wajar? Dan siapa yang memberikan klaim utama di artikel ini?";
+  if (
+    lower.includes("grafik") ||
+    lower.includes("sumbu") ||
+    lower.includes("skala") ||
+    lower.includes("angka")
+  ) {
+    return "Pengamatan yang tajam tentang grafiknya! 📊 Coba amati sumbu vertikalnya: dari angka berapa sumbu tersebut dimulai? Apakah memotong sumbu dari angka tertentu dapat membesar-besarkan tren yang sebenarnya biasa saja? Menurutmu apa dampaknya jika kita mulai dari angka 0?";
   }
 
-  return "Pertanyaanmu menunjukkan bahwa kamu sedang berpikir kritis — bagus! Sekarang, coba hubungkan apa yang kamu temukan dengan bukti yang ada. Apakah klaim dalam artikel didukung oleh sumber yang bisa diverifikasi? Apa yang terjadi ketika kamu mencari tahu sendiri?";
+  if (
+    lower.includes("siapa") ||
+    lower.includes("sumber") ||
+    lower.includes("penulis") ||
+    lower.includes("ahli") ||
+    lower.includes("dokter") ||
+    lower.includes("profesor")
+  ) {
+    return "Pertanyaan yang sangat esensial bagi investigator! 🔍 Coba cek kredibilitas tokoh atau lembaga yang dikutip di artikel. Kamu bisa membuka tab 'Pelacakan Fakta' di samping untuk memverifikasi apakah nama dan institusi tersebut terdaftar resmi di basis data.";
+  }
+
+  if (
+    lower.includes("falasi") ||
+    lower.includes("logika") ||
+    lower.includes("argumen") ||
+    lower.includes("klaim")
+  ) {
+    return "Bagus sekali kamu mulai membongkar argumennya! ⚖️ Perhatikan cara penulis menarik kesimpulan: apakah klaimnya didasarkan pada hubungan sebab-akibat yang sahih, atau sekadar menghubungkan dua kejadian secara gegabah? Apakah sampel yang digunakan cukup representatif?";
+  }
+
+  if (
+    lower.includes("bantuan") ||
+    lower.includes("bingung") ||
+    lower.includes("petunjuk") ||
+    lower.includes("tolong")
+  ) {
+    if (hints && hints.length > 0) {
+      return `Tidak masalah merasa tertantang, itulah seni investigasi! 💡 Berikut petunjuk pemantik nalar:\n\n"${hints[0]}"\n\nCoba renungkan pertanyaan tersebut saat membaca ulang artikel. Apa yang kamu temukan?`;
+    }
+    return "Jangan khawatir, investigasi memang butuh ketelitian! 💡 Coba mulai dari hal paling mendasar: sorot satu kalimat di artikel yang membuat klaim paling luar biasa. Apakah kalimat itu terdengar seperti fakta teruji atau asumsi sepihak?";
+  }
+
+  return `Pikiran kritis yang menarik untuk studi kasus ${scenarioTitle ? `"${scenarioTitle}"` : "ini"}! 🕵️‍♂️ Sekarang coba refleksikan: apakah bukti pendukung yang diberikan artikel ini benar-benar kuat, atau ada celah logika yang berusaha ditutupi dengan bahasa sensasional? Bagian mana yang paling ingin kamu bedah lebih lanjut?`;
 }

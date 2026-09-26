@@ -2,99 +2,98 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Sparkles,
+  HelpCircle,
+  BarChart2,
+  Search,
+  BrainCircuit,
+  MessageSquare,
+} from "lucide-react";
+import type { Scenario } from "@/lib/types";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  isAi?: boolean;
 }
 
 interface SokraticChatProps {
-  scenarioId: string;
-  hints: string[];
+  scenario?: Scenario;
+  scenarioId?: string;
+  hints?: string[];
   onInteraction: () => void;
 }
 
-// Sokratic mock responses for when no API key is available
-const SOKRATIC_RESPONSES: Record<string, string[]> = {
-  default: [
-    "Pertanyaan yang bagus! Coba perhatikan lebih teliti — apakah ada sesuatu yang tidak konsisten dalam data yang disajikan artikel ini?",
-    "Kamu sudah di jalur yang benar. Sekarang, tanyakan pada dirimu: siapa yang memberikan klaim ini? Apakah sumber tersebut bisa diverifikasi?",
-    "Menarik! Sebelum menerima kesimpulan itu, apa yang terjadi jika kamu melihat data dari sudut pandang yang berbeda? Misalnya, bagaimana jika rentang waktunya diperluas?",
-    "Coba pikirkan — apakah korelasi selalu berarti sebab-akibat? Apa faktor lain yang mungkin berperan?",
-    "Bagus bahwa kamu mempertanyakan itu. Sekarang, perhatikan bagaimana kutipan digunakan dalam artikel. Apakah kutipan itu lengkap?",
-  ],
-  grafik: [
-    "Perhatikan sumbu Y pada grafik. Dari angka berapa ia dimulai? Apa yang terjadi jika kita mulai dari nol?",
-    "Skala grafik bisa sangat menipu. Apakah penurunan yang terlihat 'dramatis' itu benar-benar signifikan jika dilihat dalam konteks yang lebih luas?",
-  ],
-  profesor: [
-    "Kamu menyebutkan profesor — sudahkah kamu mencoba mencari tahu apakah orang ini benar-benar ada? Apa yang bisa kamu gunakan untuk memverifikasinya?",
-    "Mengutip otoritas adalah hal yang umum. Tapi apakah otoritas yang dikutip benar-benar ahli di bidang yang relevan? Bagaimana kamu bisa memastikannya?",
-  ],
-  falasi: [
-    "Kamu menemukan sesuatu yang penting! Jenis argumen apa yang digunakan di sini? Apakah argumennya menyerang ide atau menyerang orangnya?",
-    "Perhatikan bagaimana artikel menarik kesimpulan. Apakah sampel datanya cukup besar untuk kesimpulan sekuat itu?",
-  ],
-};
-
-function getSmartResponse(message: string, hints: string[], messageCount: number): string {
-  const lower = message.toLowerCase();
-
-  // Check for topic-specific keywords
-  if (lower.includes("grafik") || lower.includes("sumbu") || lower.includes("skala") || lower.includes("chart")) {
-    return SOKRATIC_RESPONSES.grafik[Math.min(messageCount % 2, SOKRATIC_RESPONSES.grafik.length - 1)];
-  }
-  if (lower.includes("profesor") || lower.includes("doktor") || lower.includes("universitas") || lower.includes("andi")) {
-    return SOKRATIC_RESPONSES.profesor[Math.min(messageCount % 2, SOKRATIC_RESPONSES.profesor.length - 1)];
-  }
-  if (lower.includes("falasi") || lower.includes("logika") || lower.includes("argumen") || lower.includes("bias")) {
-    return SOKRATIC_RESPONSES.falasi[Math.min(messageCount % 2, SOKRATIC_RESPONSES.falasi.length - 1)];
-  }
-
-  // Provide hints progressively
-  if (lower.includes("bantuan") || lower.includes("petunjuk") || lower.includes("hint") || lower.includes("bingung")) {
-    const hintIndex = Math.min(messageCount, hints.length - 1);
-    return `💡 ${hints[hintIndex]}`;
-  }
-
-  // Default Sokratic response
-  return SOKRATIC_RESPONSES.default[messageCount % SOKRATIC_RESPONSES.default.length];
-}
+const QUICK_CHIPS = [
+  {
+    icon: HelpCircle,
+    label: "💡 Minta Petunjuk",
+    prompt: "Bisa berikan saya petunjuk penuntun untuk menemukan kejanggalan dalam artikel ini?",
+  },
+  {
+    icon: BarChart2,
+    label: "📊 Cek Grafik",
+    prompt: "Apa yang janggal dari grafik visualisasi data yang disajikan di artikel ini?",
+  },
+  {
+    icon: Search,
+    label: "🔍 Cek Sumber",
+    prompt: "Bagaimana cara saya membuktikan apakah pakar atau institusi yang dikutip di sini terpercaya?",
+  },
+  {
+    icon: BrainCircuit,
+    label: "⚖️ Deteksi Falasi",
+    prompt: "Argumen mana di artikel ini yang mengandung kecacatan logika (logical fallacy)?",
+  },
+];
 
 export default function SokraticChat({
+  scenario,
   scenarioId,
-  hints,
+  hints = [],
   onInteraction,
 }: SokraticChatProps) {
+  const activeHints = scenario?.sokraticHints || hints;
+  const activeTitle = scenario?.title || "Studi Kasus";
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
       role: "assistant",
-      content:
-        "Halo, Investigator! 🔍 Saya adalah asisten AI Sokratik-mu. Saya tidak akan memberikan jawaban langsung, tapi saya akan membantumu berpikir dengan pertanyaan-pertanyaan penuntun. Apa yang menurutmu mencurigakan dari artikel ini?",
+      content: `Halo, Investigator! 🔍 Saya adalah Asisten AI Sokratik-mu yang didukung oleh Gemini 2.5 Flash.\n\nSaya di sini untuk menemanimu menganalisis artikel "${activeTitle}". Saya tidak akan langsung memberi tahu jawabannya, tapi saya akan memandu daya nalarmu dengan pertanyaan kritis agar kamu bisa membongkar kejanggalan kasus ini secara mandiri.\n\nApa bagian yang paling mencurigakan menurut pengamatanmu?`,
       timestamp: new Date(),
+      isAi: true,
     },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const userMessageCount = useRef(0);
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
-  const sendMessage = async () => {
-    if (!input.trim() || isTyping) return;
+  const handleSend = async (messageText?: string) => {
+    const textToSend = (messageText ?? input).trim();
+    if (!textToSend || isTyping) return;
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: "user",
-      content: input.trim(),
+      content: textToSend,
       timestamp: new Date(),
     };
 
@@ -102,18 +101,27 @@ export default function SokraticChat({
     setInput("");
     setIsTyping(true);
     onInteraction();
-    userMessageCount.current++;
-
-    // Try API first, fall back to smart mock
-    let responseText: string;
 
     try {
+      const allFallacies =
+        scenario?.article?.paragraphs?.flatMap((p) => p.fallacies || []) || [];
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: userMessage.content,
-          scenarioId,
+          message: textToSend,
+          scenarioId: scenario?.id || scenarioId,
+          scenarioTitle: scenario?.title,
+          scenarioCategory: scenario?.category,
+          articleHeadline: scenario?.article?.headline,
+          articleSource: scenario?.article?.source,
+          articleAuthor: scenario?.article?.author,
+          fallacies: allFallacies,
+          hints: activeHints,
+          graphTitle: scenario?.graphData?.title,
+          misleadingYMin: scenario?.graphData?.misleadingYMin,
+          correctYMin: scenario?.graphData?.correctYMin,
           history: messages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -121,92 +129,106 @@ export default function SokraticChat({
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        responseText = data.response;
-      } else {
-        responseText = getSmartResponse(
-          userMessage.content,
-          hints,
-          userMessageCount.current
-        );
-      }
-    } catch {
-      responseText = getSmartResponse(
-        userMessage.content,
-        hints,
-        userMessageCount.current
-      );
+      const data = await res.json();
+      const replyContent =
+        data?.response ||
+        "Pertanyaan yang tajam! Coba hubungkan temuanmu dengan data rujukan resmi di tab Pelacakan Fakta.";
+
+      const aiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        role: "assistant",
+        content: replyContent,
+        timestamp: new Date(),
+        isAi: true,
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (err) {
+      console.error("Gagal mengirim pesan chat:", err);
+      const errorMessage: Message = {
+        id: `ai-err-${Date.now()}`,
+        role: "assistant",
+        content:
+          "💡 Coba perhatikan kembali klaim utama di artikel: apakah sampel yang digunakan cukup mewakili, dan apakah grafik menampilkan baseline dari angka 0?",
+        timestamp: new Date(),
+        isAi: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsTyping(false);
     }
-
-    // Simulate typing delay
-    await new Promise((resolve) =>
-      setTimeout(resolve, 500 + Math.random() * 1000)
-    );
-
-    const aiMessage: Message = {
-      id: `ai-${Date.now()}`,
-      role: "assistant",
-      content: responseText,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, aiMessage]);
-    setIsTyping(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSend();
     }
   };
 
   return (
-    <div className="h-full flex flex-col">
-      <h3 className="text-sm font-semibold text-surface-200 mb-3 flex items-center gap-2">
-        🤖 Asisten AI Sokratik
-      </h3>
+    <div className="h-full flex flex-col flex-1 min-h-0">
+      {/* Header Info */}
+      <div className="shrink-0 flex items-center justify-between mb-2 pb-1.5 border-b border-primary-500/10">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-purple-500 to-primary-500 flex items-center justify-center text-white shadow-sm shadow-purple-500/20">
+            <Bot className="w-3.5 h-3.5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-surface-100 flex items-center gap-1.5">
+              <span>Asisten AI Sokratik</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            </h3>
+            <p className="text-[10px] text-surface-200/50">
+              Didukung Gemini 2.5 Flash • Menuntun Nalar Kritis
+            </p>
+          </div>
+        </div>
 
-      <div className="flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/15">
-        <Sparkles className="w-3 h-3 text-amber-400" />
-        <p className="text-[10px] text-amber-300/80">
-          AI ini membimbing dengan pertanyaan, bukan jawaban langsung
-        </p>
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 font-medium">
+          Tutor Interaktif
+        </span>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-3 mb-3 pr-1">
-        <AnimatePresence>
+      <div className="shrink-0 flex items-center gap-1.5 mb-2 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300/90 text-[10.5px] leading-tight">
+        <Sparkles className="w-3 h-3 shrink-0 text-amber-400" />
+        <span>
+          Metode Sokratik: AI ini membimbing dengan pertanyaan penuntun agar kamu membongkar kasus mandiri.
+        </span>
+      </div>
+
+      {/* Messages Scroll Area */}
+      <div className="flex-1 min-h-[240px] overflow-y-auto space-y-2.5 mb-2 pr-1">
+        <AnimatePresence initial={false}>
           {messages.map((msg) => (
             <motion.div
               key={msg.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`flex gap-2 ${
+              transition={{ duration: 0.25 }}
+              className={`flex items-start gap-2.5 ${
                 msg.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
               {msg.role === "assistant" && (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-primary-600 flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/30 mt-0.5">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
               )}
 
               <div
-                className={`max-w-[80%] px-3.5 py-2.5 text-sm leading-relaxed ${
+                className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs sm:text-[13px] leading-relaxed whitespace-pre-line text-left ${
                   msg.role === "user"
-                    ? "chat-bubble-user text-white"
-                    : "chat-bubble-ai text-surface-200/90"
+                    ? "bg-primary-600 text-white rounded-tr-xs shadow-md shadow-primary-950/40"
+                    : "bg-surface-900/90 border border-primary-500/20 text-surface-100 rounded-tl-xs shadow-sm"
                 }`}
               >
                 {msg.content}
               </div>
 
               {msg.role === "user" && (
-                <div className="w-7 h-7 rounded-lg bg-surface-700 flex items-center justify-center shrink-0">
-                  <User className="w-4 h-4 text-surface-200/60" />
+                <div className="w-7 h-7 rounded-lg bg-surface-800 border border-surface-700 flex items-center justify-center shrink-0 text-surface-200 mt-0.5">
+                  <User className="w-4 h-4 text-surface-300" />
                 </div>
               )}
             </motion.div>
@@ -217,15 +239,15 @@ export default function SokraticChat({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="flex gap-2 items-start"
+            className="flex items-center gap-2.5"
           >
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-600 to-primary-600 flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/30">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="chat-bubble-ai px-4 py-3 flex items-center gap-1">
-              <Loader2 className="w-3 h-3 animate-spin text-primary-400" />
-              <span className="text-xs text-surface-200/50">
-                Berpikir...
+            <div className="px-3.5 py-2 rounded-2xl bg-surface-900/90 border border-primary-500/20 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+              <span className="text-xs text-purple-300/80 font-medium">
+                Gemini sedang meracik pertanyaan penuntun...
               </span>
             </div>
           </motion.div>
@@ -234,22 +256,38 @@ export default function SokraticChat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="flex gap-2">
+      {/* Quick Prompt Chips */}
+      <div className="shrink-0 mb-2.5 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        {QUICK_CHIPS.map((chip, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => handleSend(chip.prompt)}
+            disabled={isTyping}
+            className="shrink-0 px-2.5 py-1 rounded-full bg-surface-900/80 hover:bg-primary-500/15 border border-primary-500/15 hover:border-primary-500/30 text-[11px] text-surface-200/80 hover:text-primary-300 transition-all flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <span>{chip.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Input Form */}
+      <div className="shrink-0 flex gap-2">
         <input
           ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Tanyakan sesuatu..."
+          placeholder="Tanyakan kejanggalan atau minta petunjuk..."
           disabled={isTyping}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-surface-900/60 border border-primary-500/15 text-sm text-surface-200 placeholder-surface-200/30 focus:outline-none focus:border-primary-500/40 focus:ring-1 focus:ring-primary-500/20 transition-all disabled:opacity-50"
+          className="flex-1 px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-xs sm:text-sm text-surface-100 placeholder-surface-200/30 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400/20 transition-all disabled:opacity-50"
         />
         <button
-          onClick={sendMessage}
+          onClick={() => handleSend()}
           disabled={!input.trim() || isTyping}
-          className="p-2.5 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 text-white hover:shadow-lg hover:shadow-primary-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-primary-600 hover:from-purple-500 hover:to-primary-500 text-white shadow-md shadow-purple-600/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shrink-0"
+          title="Kirim pesan"
         >
           <Send className="w-4 h-4" />
         </button>

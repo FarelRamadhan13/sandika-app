@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
@@ -16,19 +16,30 @@ import {
   Loader2,
 } from "lucide-react";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, user } = useAuth();
+  const { signIn, user, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get("redirect") || "/dashboard";
 
   // Redirect if already logged in
-  if (user) {
-    router.push("/dashboard");
-    return null;
+  useEffect(() => {
+    if (!loading && user) {
+      router.push(redirectTarget);
+    }
+  }, [user, loading, router, redirectTarget]);
+
+  if (loading || user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +49,7 @@ export default function LoginPage() {
 
     try {
       await signIn(email, password);
-      router.push("/dashboard");
+      router.push(redirectTarget);
     } catch (err: unknown) {
       const firebaseError = err as { code?: string };
       switch (firebaseError.code) {
@@ -188,7 +199,11 @@ export default function LoginPage() {
             <p className="text-sm text-surface-200/50">
               Belum punya akun?{" "}
               <Link
-                href="/register"
+                href={
+                  redirectTarget
+                    ? `/register?redirect=${encodeURIComponent(redirectTarget)}`
+                    : "/register"
+                }
                 className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
               >
                 Daftar Sekarang
@@ -198,5 +213,19 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen pt-24 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-primary-400" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

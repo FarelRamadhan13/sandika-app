@@ -44,7 +44,13 @@ export default function Footer() {
                 href="/dashboard"
                 className="block text-sm text-surface-200/50 hover:text-primary-400 transition-colors"
               >
-                Dashboard Pengajar
+                Dashboard Pelajar
+              </Link>
+              <Link
+                href="/data-siswa"
+                className="block text-sm text-surface-200/50 hover:text-primary-400 transition-colors"
+              >
+                Semua Data Siswa
               </Link>
             </div>
           </div>

@@ -52,11 +52,9 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: "Beranda", icon: Home },
     { href: "/sandbox", label: "Sandbox", icon: BookOpen },
+    { href: "/data-siswa", label: "Semua Data Siswa", icon: Users },
     ...(user
-      ? [
-          { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-          { href: "/data-siswa", label: "Data Siswa", icon: Users },
-        ]
+      ? [{ href: "/dashboard", label: "Dashboard Pelajar", icon: BarChart3 }]
       : []),
   ];
 
@@ -71,10 +69,10 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-surface-950 border-b border-primary-500/15 ${
         isScrolled
-          ? "glass-strong shadow-lg shadow-primary-900/20"
-          : "bg-transparent"
+          ? "shadow-lg shadow-black/40"
+          : "shadow-sm"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -155,7 +153,7 @@ export default function Navbar() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-2 w-56 tooltip-popup p-2"
+                      className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-surface-900 border border-primary-500/20 shadow-2xl p-2 z-50"
                     >
                       <div className="px-3 py-2 mb-1 border-b border-primary-500/10">
                         <p className="text-sm font-medium text-surface-50 truncate">
@@ -172,14 +170,6 @@ export default function Navbar() {
                       >
                         <User className="w-4 h-4" />
                         Dashboard Saya
-                      </Link>
-                      <Link
-                        href="/data-siswa"
-                        onClick={() => setIsProfileOpen(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-surface-200/70 hover:text-surface-200 hover:bg-primary-500/10 transition-colors"
-                      >
-                        <Users className="w-4 h-4" />
-                        Data Siswa
                       </Link>
                       <button
                         onClick={handleSignOut}
@@ -233,7 +223,7 @@ export default function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden glass-strong border-t border-primary-500/10"
+            className="md:hidden bg-surface-950 border-t border-primary-500/15 shadow-2xl"
           >
             <div className="px-4 py-4 space-y-2">
               {navLinks.map((link) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import ArticlePanel from "@/components/sandbox/ArticlePanel";
 import GraphTool from "@/components/sandbox/GraphTool";
 import ReverseSearch from "@/components/sandbox/ReverseSearch";
@@ -20,8 +20,27 @@ import {
   Target,
   CheckCircle,
   ChevronLeft,
+  IdCard,
+  Building2,
+  GraduationCap,
+  Loader2,
+  CheckCircle2,
+  Save,
+  ArrowRight,
+  Lock,
+  LogIn,
+  UserPlus,
+  Sparkles,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  AlertCircle,
+  X,
+  Compass,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const TABS = [
   { id: "graph", label: "Grafik", icon: BarChart3, emoji: "📊" },
@@ -31,10 +50,73 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export default function SandboxPage() {
-  const { user } = useAuth();
-  const scenario: Scenario = scenariosData.scenarios[0] as Scenario;
+interface UserProfileData {
+  displayName: string;
+  school: string;
+  grade: string;
+  studentIdNumber: string;
+  bio: string;
+}
 
+const TOPIC_PRESETS = [
+  {
+    label: "Kesehatan & Medis",
+    value: "Kesehatan: Air Alkali Kristal Ajaib Sembuhkan Kanker & Diabetes",
+    desc: "Klaim terapi instan tanpa obat medis",
+    icon: "🩺",
+  },
+  {
+    label: "Teknologi & AI",
+    value: "Teknologi: AI Generatif Menyebabkan Kepunahan 90% Desainer Visual",
+    desc: "Manipulasi data ancaman ketenagakerjaan",
+    icon: "🤖",
+  },
+  {
+    label: "Lingkungan & Iklim",
+    value: "Lingkungan: Penemuan Data Suhu Bumi Menurun Drastis 5 Tahun",
+    desc: "Cherry-picking rentang waktu iklim",
+    icon: "🌍",
+  },
+  {
+    label: "Ekonomi & Kripto",
+    value: "Ekonomi: Robot Trading Kripto Garansi Profit Pasti 300% per Bulan",
+    desc: "Skema ponzi berkedok algoritma cerdas",
+    icon: "💰",
+  },
+  {
+    label: "Pangan & Nutrisi",
+    value: "Pangan: Temuan Beras Plastik Sintetis Beredar Bebas di Pasaran",
+    desc: "Hoaks pangan berbahaya tanpa uji lab",
+    icon: "🧪",
+  },
+];
+
+export default function SandboxPage() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  // Scenarios state
+  const [scenarios, setScenarios] = useState<Scenario[]>(
+    scenariosData.scenarios as Scenario[]
+  );
+  const [selectedScenarioIndex, setSelectedScenarioIndex] = useState(0);
+  const [isLoadingScenarios, setIsLoadingScenarios] = useState(false);
+  const [isScenarioSelectorOpen, setIsScenarioSelectorOpen] = useState(true);
+
+  // Active scenario
+  const scenario: Scenario =
+    scenarios[selectedScenarioIndex] ||
+    (scenariosData.scenarios[0] as Scenario);
+
+  // AI Scenario Generator modal state
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState(TOPIC_PRESETS[0].value);
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [generationDifficulty, setGenerationDifficulty] = useState("Menengah");
+  const [generatorError, setGeneratorError] = useState("");
+
+  // Sandbox investigation state
   const [activeTab, setActiveTab] = useState<TabId>("graph");
   const [highlights, setHighlights] = useState<
     {
@@ -47,17 +129,82 @@ export default function SandboxPage() {
   const [graphDiscovered, setGraphDiscovered] = useState(false);
   const [searchCount, setSearchCount] = useState(0);
   const [sokraticCount, setSokraticCount] = useState(0);
-  const [startTime] = useState(Date.now());
+  const [startTime, setStartTime] = useState(Date.now());
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [showResults, setShowResults] = useState(false);
 
-  // Timer
+  // Modals state
+  const [showPersonalDataModal, setShowPersonalDataModal] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Profile from Firebase
+  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+  const [personalFormData, setPersonalFormData] = useState({
+    studentName: "",
+    school: "",
+    grade: "",
+    studentIdNumber: "",
+    bio: "",
+  });
+
+  // Protect route: require login so students cannot access anonymously
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login?redirect=/sandbox");
+    }
+  }, [user, authLoading, router]);
+
+  // Fetch scenarios from API (base JSON + Firebase AI-generated scenarios)
+  const fetchScenarios = useCallback(async () => {
+    setIsLoadingScenarios(true);
+    try {
+      const res = await fetch("/api/scenarios");
+      const data = await res.json();
+      if (data.success && data.scenarios?.length > 0) {
+        setScenarios(data.scenarios);
+      }
+    } catch (err) {
+      console.warn("Gagal memuat skenario dari API:", err);
+    } finally {
+      setIsLoadingScenarios(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchScenarios();
+  }, [fetchScenarios]);
+
+  // Fetch user profile if logged in
+  useEffect(() => {
+    if (user?.uid) {
+      fetch(`/api/user/profile?uid=${user.uid}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.profile) {
+            setUserProfile(data.profile);
+            setPersonalFormData({
+              studentName: data.profile.displayName || user.displayName || "",
+              school: data.profile.school || "",
+              grade: data.profile.grade || "",
+              studentIdNumber: data.profile.studentIdNumber || "",
+              bio: data.profile.bio || "",
+            });
+          }
+        })
+        .catch((err) =>
+          console.error("Gagal memuat profil pengguna di sandbox:", err)
+        );
+    }
+  }, [user]);
+
+  // Timer - only run when student is authenticated
+  useEffect(() => {
+    if (!user) return;
     const interval = setInterval(() => {
       setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime]);
+  }, [startTime, user]);
 
   // Listen for classification events from ArticlePanel
   useEffect(() => {
@@ -70,7 +217,6 @@ export default function SandboxPage() {
         (p) => p.id === paragraphId
       );
       const matchingFallacy = paragraph?.fallacies.find((f) => {
-        // Check if the selected text overlaps with any known fallacy text
         const normalizedSelected = text.toLowerCase().trim();
         const normalizedFallacy = f.text.toLowerCase().trim();
         return (
@@ -101,9 +247,68 @@ export default function SandboxPage() {
     return () => window.removeEventListener("sandika:classify", handler);
   }, [scenario.article.paragraphs]);
 
+  // Handler to switch selected scenario
+  const handleSelectScenario = (index: number) => {
+    if (index === selectedScenarioIndex) return;
+    setSelectedScenarioIndex(index);
+    setHighlights([]);
+    setGraphDiscovered(false);
+    setSearchCount(0);
+    setSokraticCount(0);
+    setStartTime(Date.now());
+    setElapsedTime(0);
+  };
+
+  // Handler to generate new scenario via Gemini AI API
+  const handleGenerateScenario = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsGenerating(true);
+    setGeneratorError("");
+
+    try {
+      const topicToGenerate = customPrompt.trim()
+        ? customPrompt
+        : selectedPreset;
+
+      const res = await fetch("/api/scenarios/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: topicToGenerate,
+          category: topicToGenerate.split(":")[0]?.trim() || "Umum",
+          difficulty: generationDifficulty,
+          customPrompt,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.scenario) {
+        setScenarios((prev) => [data.scenario, ...prev]);
+        setSelectedScenarioIndex(0);
+        // Reset state for newly generated scenario
+        setHighlights([]);
+        setGraphDiscovered(false);
+        setSearchCount(0);
+        setSokraticCount(0);
+        setStartTime(Date.now());
+        setElapsedTime(0);
+        setIsGeneratorOpen(false);
+        setCustomPrompt("");
+      } else {
+        setGeneratorError(
+          data.error || "Gagal membuat skenario. Silakan coba lagi."
+        );
+      }
+    } catch {
+      setGeneratorError("Terjadi kesalahan jaringan saat membuat skenario AI.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleTextSelect = useCallback(
     (_text: string, _paragraphId: string) => {
-      // Handled by the event listener above
+      // Handled by event listener
     },
     []
   );
@@ -121,7 +326,9 @@ export default function SandboxPage() {
   }, []);
 
   // Calculate score
-  const correctHighlights = highlights.filter((h) => h.isCorrect === true).length;
+  const correctHighlights = highlights.filter(
+    (h) => h.isCorrect === true
+  ).length;
   const totalScore =
     correctHighlights * 10 +
     (graphDiscovered ? 10 : 0) +
@@ -138,18 +345,44 @@ export default function SandboxPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleFinish = async () => {
-    setShowResults(true);
-
-    // Try to save score to Firebase
+  // Save score and personal data to Firebase
+  const commitSaveToFirebase = async (dataToSave: {
+    studentName: string;
+    school: string;
+    grade: string;
+    studentIdNumber: string;
+    bio: string;
+  }) => {
+    setIsSaving(true);
     try {
+      if (user?.uid) {
+        await fetch("/api/user/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            uid: user.uid,
+            displayName: dataToSave.studentName,
+            email: user.email,
+            school: dataToSave.school,
+            grade: dataToSave.grade,
+            studentIdNumber: dataToSave.studentIdNumber,
+            bio: dataToSave.bio,
+          }),
+        });
+      }
+
       await fetch("/api/score", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scenarioId: scenario.id,
-          studentName: user?.displayName || "Investigator",
+          studentName:
+            dataToSave.studentName || user?.displayName || "Investigator",
           userId: user?.uid || "",
+          email: user?.email || "",
+          school: dataToSave.school || "",
+          grade: dataToSave.grade || "",
+          studentIdNumber: dataToSave.studentIdNumber || "",
           highlights: highlights.map((h) => ({
             selectedText: h.text,
             classifiedAs: h.classifiedAs,
@@ -166,34 +399,143 @@ export default function SandboxPage() {
           completionTimeSeconds: elapsedTime,
         }),
       });
-    } catch {
-      // Silent fail for demo
+    } catch (err) {
+      console.error("Gagal menyimpan data ke Firebase:", err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const handleFinish = async () => {
+    const hasPersonalDataInFirebase = Boolean(
+      userProfile?.school &&
+        userProfile?.grade &&
+        (userProfile?.displayName || user?.displayName)
+    );
+
+    if (hasPersonalDataInFirebase && userProfile) {
+      await commitSaveToFirebase({
+        studentName: userProfile.displayName || user?.displayName || "",
+        school: userProfile.school || "",
+        grade: userProfile.grade || "",
+        studentIdNumber: userProfile.studentIdNumber || "",
+        bio: userProfile.bio || "",
+      });
+      setShowResults(true);
+    } else {
+      setShowPersonalDataModal(true);
+    }
+  };
+
+  const handlePersonalDataSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await commitSaveToFirebase(personalFormData);
+    setShowPersonalDataModal(false);
+    setShowResults(true);
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen pt-24 flex flex-col items-center justify-center gap-3 bg-surface-950">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-400" />
+        <p className="text-sm text-surface-200/60 font-medium">
+          Memverifikasi sesi siswa...
+        </p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen pt-24 flex items-center justify-center px-4 bg-surface-950">
+        <div className="glass-card rounded-2xl p-8 max-w-md w-full text-center border border-primary-500/20 shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-4 text-amber-400">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-surface-50 mb-2">
+            Login Siswa Diperlukan
+          </h2>
+          <p className="text-sm text-surface-200/60 mb-6 leading-relaxed">
+            Untuk memulai simulasi investigasi sandbox dan memastikan data statistik investigasi tersimpan ke akun Firebase Anda, silakan masuk sebagai siswa terlebih dahulu. Siswa tidak dapat mengakses secara anonim.
+          </p>
+          <div className="flex flex-col gap-3">
+            <Link
+              href="/login?redirect=/sandbox"
+              className="btn-primary text-sm !py-3 flex items-center justify-center gap-2 font-medium"
+            >
+              <LogIn className="w-4 h-4" />
+              <span>Masuk Sebagai Siswa</span>
+            </Link>
+            <Link
+              href="/register?redirect=/sandbox"
+              className="btn-secondary text-sm !py-3 flex items-center justify-center gap-2 font-medium"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Daftar Akun Siswa Baru</span>
+            </Link>
+            <Link
+              href="/"
+              className="text-xs text-surface-200/40 hover:text-surface-200/70 transition-colors mt-2"
+            >
+              Kembali ke Beranda
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen pt-20 bg-surface-950">
-      {/* Top bar */}
-      <div className="sticky top-16 md:top-20 z-30 glass-strong border-b border-primary-500/10">
+    <div className="min-h-screen pt-16 md:pt-20 bg-surface-950 pb-12">
+      {/* Top Bar with Timer, Score & Actions */}
+      <div className="sticky top-16 md:top-20 z-30 bg-surface-950 border-b border-primary-500/20 shadow-lg shadow-black/40">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <Link
               href="/"
               className="p-1.5 rounded-lg hover:bg-primary-500/10 transition-colors shrink-0"
+              title="Kembali ke Beranda"
             >
               <ChevronLeft className="w-4 h-4 text-surface-200/60" />
             </Link>
+
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold text-surface-50 truncate">
-                {scenario.title}
-              </h1>
-              <p className="text-[10px] text-surface-200/50">
-                {scenario.category} • {scenario.difficulty}
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-semibold text-surface-50 truncate max-w-xs sm:max-w-md md:max-w-lg">
+                  {scenario.title}
+                </h1>
+                {scenario.isAiGenerated && (
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Gemini AI
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-surface-200/50 mt-0.5">
+                {scenario.category} • Tingkat {scenario.difficulty} • {scenario.totalFallacies} Falasi Tersembunyi
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Toggle Scenario Drawer Button */}
+            <button
+              onClick={() => setIsScenarioSelectorOpen(!isScenarioSelectorOpen)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                isScenarioSelectorOpen
+                  ? "bg-primary-500/20 border-primary-500/40 text-primary-300"
+                  : "bg-surface-900 border-primary-500/15 text-surface-200 hover:text-surface-50"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-primary-400" />
+              <span className="hidden sm:inline">Pilih Kasus</span>
+              {isScenarioSelectorOpen ? (
+                <ChevronUp className="w-3 h-3 ml-0.5" />
+              ) : (
+                <ChevronDown className="w-3 h-3 ml-0.5" />
+              )}
+            </button>
+
             {/* Timer */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800/80 border border-primary-500/10">
               <Clock className="w-3 h-3 text-primary-400" />
@@ -213,10 +555,15 @@ export default function SandboxPage() {
             {/* Finish button */}
             <button
               onClick={handleFinish}
+              disabled={isSaving}
               className="btn-primary text-xs !py-2 !px-4"
             >
-              <span className="flex items-center gap-1.5">
-                <Target className="w-3 h-3" />
+              <span className="flex items-center gap-1.5 font-semibold">
+                {isSaving ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Target className="w-3 h-3" />
+                )}
                 Selesai
               </span>
             </button>
@@ -224,9 +571,120 @@ export default function SandboxPage() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="max-w-[1600px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-[calc(100vh-180px)]">
+      {/* SECTION: SCENARIO CARDS & GEMINI AI GENERATOR CAROUSEL */}
+      <AnimatePresence>
+        {isScenarioSelectorOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="border-b border-primary-500/20 bg-surface-900 overflow-hidden shadow-inner"
+          >
+            <div className="max-w-[1600px] mx-auto px-4 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-cyan-400" />
+                  <h2 className="text-xs font-bold text-surface-100 uppercase tracking-wider">
+                    Pilih Studi Kasus Investigasi ({scenarios.length} Kasus Tersedia)
+                  </h2>
+                </div>
+
+                <button
+                  onClick={() => setIsGeneratorOpen(true)}
+                  className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-primary-600 hover:from-purple-500 hover:to-primary-500 shadow-sm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Generate dengan Gemini AI</span>
+                </button>
+              </div>
+
+              {/* Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {/* Special Card: Generate with Gemini AI */}
+                <button
+                  onClick={() => setIsGeneratorOpen(true)}
+                  className="p-4 rounded-xl border border-dashed border-purple-500/40 hover:border-purple-400/80 bg-purple-500/5 hover:bg-purple-500/10 transition-all flex flex-col justify-between text-left group"
+                >
+                  <div>
+                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white mb-2.5 shadow-md shadow-purple-500/20 group-hover:scale-105 transition-transform">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-sm font-bold text-surface-100 group-hover:text-purple-300 transition-colors">
+                      + Generate Skenario Baru
+                    </h3>
+                    <p className="text-[11px] text-surface-200/60 mt-1 leading-relaxed">
+                      Manfaatkan AI Gemini untuk menciptakan skenario artikel berita sintetis unik sesuai topik pilihanmu.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-purple-400 group-hover:translate-x-1 transition-transform">
+                    <span>Mulai Generate AI</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </div>
+                </button>
+
+                {/* Scenario Cards */}
+                {scenarios.map((sc, idx) => {
+                  const isCurrent = idx === selectedScenarioIndex;
+                  return (
+                    <div
+                      key={sc.id || idx}
+                      onClick={() => handleSelectScenario(idx)}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between text-left relative overflow-hidden ${
+                        isCurrent
+                          ? "bg-primary-500/15 border-primary-500/60 shadow-lg shadow-primary-900/20 ring-1 ring-primary-500/40"
+                          : "bg-surface-900/80 border-surface-800 hover:border-primary-500/30 hover:bg-surface-900"
+                      }`}
+                    >
+                      {/* Top Badges */}
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary-500/10 text-primary-300 border border-primary-500/20 truncate">
+                            {sc.category}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-800 text-surface-200/70 border border-surface-700/40 shrink-0">
+                            {sc.difficulty}
+                          </span>
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-sm font-bold text-surface-100 line-clamp-2 mb-1.5 leading-snug">
+                          {sc.title}
+                        </h3>
+
+                        <p className="text-[10px] text-surface-200/50 line-clamp-1">
+                          {sc.article?.source || "Portal Berita Sintetis"}
+                        </p>
+                      </div>
+
+                      {/* Footer Info */}
+                      <div className="mt-3 pt-2.5 border-t border-primary-500/10 flex items-center justify-between text-[11px]">
+                        <span className="text-surface-200/60">
+                          {sc.totalFallacies} Falasi Logika
+                        </span>
+
+                        {isCurrent ? (
+                          <span className="flex items-center gap-1 font-bold text-primary-400">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Aktif
+                          </span>
+                        ) : (
+                          <span className="text-surface-200/40 hover:text-primary-300 transition-colors">
+                            Pilih Kasus &rarr;
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Investigation Workspace */}
+      <div className="max-w-[1600px] mx-auto px-4 py-4 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
           {/* Left: Article Panel */}
           <div className="lg:col-span-3">
             <ArticlePanel
@@ -237,9 +695,9 @@ export default function SandboxPage() {
           </div>
 
           {/* Right: Tools Panel */}
-          <div className="lg:col-span-2 flex flex-col">
+          <div className="lg:col-span-2 flex flex-col lg:sticky lg:top-[140px] lg:h-[calc(100vh-155px)] lg:min-h-[580px] min-h-0">
             {/* Tabs */}
-            <div className="flex gap-1 mb-4 p-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
+            <div className="shrink-0 flex gap-1 mb-2.5 p-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 return (
@@ -259,21 +717,25 @@ export default function SandboxPage() {
             </div>
 
             {/* Tool content */}
-            <div className="tool-panel rounded-2xl p-5 flex-1 min-h-[400px]">
+            <div className="tool-panel rounded-2xl p-3.5 sm:p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeTab === "graph" && (
                 <GraphTool
+                  key={`graph-${scenario.id}`}
                   graphConfig={scenario.graphData}
                   onDiscovered={handleGraphDiscovered}
                 />
               )}
               {activeTab === "search" && (
                 <ReverseSearch
+                  key={`search-${scenario.id}`}
                   searchDatabase={scenario.searchDatabase}
                   onSearch={handleSearch}
                 />
               )}
               {activeTab === "chat" && (
                 <SokraticChat
+                  key={`chat-${scenario.id}`}
+                  scenario={scenario}
                   scenarioId={scenario.id}
                   hints={scenario.sokraticHints}
                   onInteraction={handleSokraticInteraction}
@@ -282,135 +744,464 @@ export default function SandboxPage() {
             </div>
 
             {/* Score Summary */}
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <div className="text-center p-3 rounded-xl bg-surface-900/50 border border-primary-500/10">
-                <Highlighter className="w-4 h-4 text-primary-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-surface-50">
+            <div className="shrink-0 mt-2.5 grid grid-cols-3 gap-2">
+              <div className="text-center py-2 px-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
+                <Highlighter className="w-3.5 h-3.5 text-primary-400 mx-auto mb-0.5" />
+                <p className="text-base font-bold text-surface-50 leading-tight">
                   {highlights.length}
                 </p>
-                <p className="text-[10px] text-surface-200/50">Sorotan</p>
+                <p className="text-[9px] text-surface-200/50 uppercase tracking-wider">Sorotan</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-surface-900/50 border border-primary-500/10">
-                <CheckCircle className="w-4 h-4 text-green-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-surface-50">
+              <div className="text-center py-2 px-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
+                <CheckCircle className="w-4 h-4 text-green-400 mx-auto mb-0.5" />
+                <p className="text-base font-bold text-surface-50 leading-tight">
                   {accuracy}%
                 </p>
-                <p className="text-[10px] text-surface-200/50">Akurasi</p>
+                <p className="text-[9px] text-surface-200/50 uppercase tracking-wider">Akurasi</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-surface-900/50 border border-primary-500/10">
-                <Bot className="w-4 h-4 text-accent-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-surface-50">
+              <div className="text-center py-2 px-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
+                <Bot className="w-4 h-4 text-accent-400 mx-auto mb-0.5" />
+                <p className="text-base font-bold text-surface-50 leading-tight">
                   {sokraticCount}
                 </p>
-                <p className="text-[10px] text-surface-200/50">Chat AI</p>
+                <p className="text-[9px] text-surface-200/50 uppercase tracking-wider">Chat AI</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Results Modal */}
-      {showResults && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: "spring", bounce: 0.2 }}
-            className="glass-card rounded-2xl p-8 max-w-md w-full"
-          >
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-4">
+      {/* MODAL: GEMINI AI SCENARIO GENERATOR */}
+      <AnimatePresence>
+        {isGeneratorOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card rounded-2xl p-6 sm:p-8 max-w-xl w-full relative max-h-[90vh] overflow-y-auto"
+            >
+              <button
+                onClick={() => setIsGeneratorOpen(false)}
+                className="absolute top-4 right-4 p-2 text-surface-200/50 hover:text-surface-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-surface-50 flex items-center gap-2">
+                    Generator Skenario AI
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      Gemini 2.5 Flash
+                    </span>
+                  </h3>
+                  <p className="text-xs text-surface-200/60 mt-0.5">
+                    Buat studi kasus baru dengan artikel berita sintetis, falasi logika, dan grafik manipulatif secara otomatis.
+                  </p>
+                </div>
+              </div>
+
+              {generatorError && (
+                <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{generatorError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleGenerateScenario} className="space-y-4">
+                {/* Topic Presets */}
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/80 mb-2">
+                    Pilih Topik Skenario Studi Kasus
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {TOPIC_PRESETS.map((preset) => {
+                      const isSelected = selectedPreset === preset.value && !customPrompt;
+                      return (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPreset(preset.value);
+                            setCustomPrompt("");
+                          }}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? "bg-purple-500/15 border-purple-500/50 text-surface-50 ring-1 ring-purple-500/30"
+                              : "bg-surface-900/60 border-surface-800 text-surface-200/70 hover:border-surface-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{preset.icon}</span>
+                            <span className="text-xs font-bold text-surface-100">
+                              {preset.label}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-surface-200/50 mt-1 line-clamp-1">
+                            {preset.desc}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Prompt */}
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/80 mb-1">
+                    Atau Ketik Topik Kustom Anda Sendiri (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="Contoh: Klaim Radiasi 5G Menyebabkan Mutasi Genetik pada Tanaman"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 placeholder-surface-200/30 focus:outline-none focus:border-purple-400"
+                  />
+                </div>
+
+                {/* Difficulty */}
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/80 mb-1">
+                    Tingkat Kesulitan Investigasi
+                  </label>
+                  <select
+                    value={generationDifficulty}
+                    onChange={(e) => setGenerationDifficulty(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-purple-400"
+                  >
+                    <option value="Mudah">Mudah (Falasi Lebih Kentara & Mudah Terdeteksi)</option>
+                    <option value="Menengah">Menengah (Standar Investigasi Sandbox)</option>
+                    <option value="Sulit">Sulit (Falasi Halus & Menuntut Verifikasi Mendalam)</option>
+                  </select>
+                </div>
+
+                <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/15 text-[11px] text-surface-200/60 leading-relaxed">
+                  💡 <strong>Info:</strong> Model Gemini AI akan otomatis meracik artikel berita investigasi baru secara dinamis menggunakan API key sistem, menyusupkan falasi logika tersembunyi, merancang data grafik termanipulasi, dan menyusun database pencarian fakta untuk dibongkar di sandbox.
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsGeneratorOpen(false)}
+                    disabled={isGenerating}
+                    className="btn-secondary text-xs !py-2.5 !px-4"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isGenerating}
+                    className="btn-primary text-xs !py-2.5 !px-5 bg-gradient-to-r from-purple-600 to-primary-600 hover:from-purple-500 hover:to-primary-500 flex items-center gap-2 font-semibold shadow-lg shadow-purple-500/20"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyusun Skenario dengan AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Generate Skenario Sekarang</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 1: Input & Save Personal Data to Firebase */}
+      <AnimatePresence>
+        {showPersonalDataModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card rounded-2xl p-6 sm:p-8 max-w-lg w-full relative"
+            >
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shrink-0">
+                  <IdCard className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-surface-50">
+                    Simpan Data Pribadi Siswa
+                  </h3>
+                  <p className="text-xs text-surface-200/60 mt-0.5">
+                    Data pribadi Anda belum tercatat di Firebase. Lengkapi untuk menyimpan hasil investigasi ke Dashboard Mandiri.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handlePersonalDataSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/70 mb-1">
+                    Nama Lengkap Siswa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={personalFormData.studentName}
+                    onChange={(e) =>
+                      setPersonalFormData({
+                        ...personalFormData,
+                        studentName: e.target.value,
+                      })
+                    }
+                    placeholder="Contoh: Farel Ramadhan"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-primary-400"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-surface-200/70 mb-1">
+                      Asal Sekolah / Madrasah *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={personalFormData.school}
+                      onChange={(e) =>
+                        setPersonalFormData({
+                          ...personalFormData,
+                          school: e.target.value,
+                        })
+                      }
+                      placeholder="Contoh: SMAN 1 Jakarta"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-primary-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-surface-200/70 mb-1">
+                      Kelas / Tingkat *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={personalFormData.grade}
+                      onChange={(e) =>
+                        setPersonalFormData({
+                          ...personalFormData,
+                          grade: e.target.value,
+                        })
+                      }
+                      placeholder="Contoh: Kelas 11 IPA"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-primary-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/70 mb-1">
+                    NISN / Nomor Induk Siswa (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={personalFormData.studentIdNumber}
+                    onChange={(e) =>
+                      setPersonalFormData({
+                        ...personalFormData,
+                        studentIdNumber: e.target.value,
+                      })
+                    }
+                    placeholder="Contoh: 0078291038"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-primary-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-surface-200/70 mb-1">
+                    Motto / Bio Investigasi (Opsional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={personalFormData.bio}
+                    onChange={(e) =>
+                      setPersonalFormData({
+                        ...personalFormData,
+                        bio: e.target.value,
+                      })
+                    }
+                    placeholder="Contoh: Berpikir kritis sebelum menyebarkan berita."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-surface-900/80 border border-primary-500/20 text-sm text-surface-100 focus:outline-none focus:border-primary-400 resize-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowPersonalDataModal(false)}
+                    className="btn-secondary text-xs !py-2.5 !px-4"
+                  >
+                    Kembali ke Sandbox
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="btn-primary text-xs !py-2.5 !px-5 flex items-center gap-2"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyimpan ke Firebase...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Simpan & Lihat Hasil</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 2: Results Modal with Firebase Confirmation & Dashboard Link */}
+      <AnimatePresence>
+        {showResults && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", bounce: 0.2 }}
+              className="glass-card rounded-2xl p-6 sm:p-8 max-w-md w-full text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/20">
                 <Trophy className="w-8 h-8 text-white" />
               </div>
 
-              <h2 className="text-2xl font-bold text-surface-50 mb-2">
+              <h2 className="text-2xl font-bold text-surface-50 mb-1">
                 Investigasi Selesai!
               </h2>
-              <p className="text-surface-200/60 text-sm mb-6">
-                Berikut ringkasan performa investigasimu
-              </p>
 
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="p-4 rounded-xl bg-surface-900/60 border border-primary-500/10">
+              {/* Verified Firebase Badge */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/25 text-green-400 text-xs font-medium my-2">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Data Pribadi & Skor Tersimpan di Firebase
+              </div>
+
+              {/* Student identification badge */}
+              <div className="p-3 my-3 rounded-xl bg-surface-900/60 border border-primary-500/10 text-left text-xs">
+                <p className="font-semibold text-surface-100 flex items-center gap-1.5">
+                  <IdCard className="w-3.5 h-3.5 text-primary-400" />
+                  {personalFormData.studentName ||
+                    userProfile?.displayName ||
+                    user?.displayName ||
+                    "Investigator Siswa"}
+                </p>
+                <div className="flex items-center gap-3 text-surface-200/60 mt-1">
+                  {(personalFormData.school || userProfile?.school) && (
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3 h-3" />
+                      {personalFormData.school || userProfile?.school}
+                    </span>
+                  )}
+                  {(personalFormData.grade || userProfile?.grade) && (
+                    <span className="flex items-center gap-1">
+                      <GraduationCap className="w-3 h-3" />
+                      {personalFormData.grade || userProfile?.grade}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2.5 mb-5">
+                <div className="p-3.5 rounded-xl bg-surface-900/60 border border-primary-500/10">
                   <p className="text-2xl font-bold text-gradient">
                     {totalScore}
                   </p>
-                  <p className="text-xs text-surface-200/50">
+                  <p className="text-[11px] text-surface-200/50">
                     dari {maxScore} poin
                   </p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-900/60 border border-primary-500/10">
+                <div className="p-3.5 rounded-xl bg-surface-900/60 border border-primary-500/10">
                   <p className="text-2xl font-bold text-gradient-accent">
                     {accuracy}%
                   </p>
-                  <p className="text-xs text-surface-200/50">Akurasi</p>
+                  <p className="text-[11px] text-surface-200/50">Akurasi</p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-900/60 border border-primary-500/10">
-                  <p className="text-2xl font-bold text-surface-50">
+                <div className="p-3.5 rounded-xl bg-surface-900/60 border border-primary-500/10">
+                  <p className="text-xl font-bold text-surface-50 font-mono">
                     {formatTime(elapsedTime)}
                   </p>
-                  <p className="text-xs text-surface-200/50">Waktu</p>
+                  <p className="text-[11px] text-surface-200/50">Waktu</p>
                 </div>
-                <div className="p-4 rounded-xl bg-surface-900/60 border border-primary-500/10">
-                  <p className="text-2xl font-bold text-surface-50">
+                <div className="p-3.5 rounded-xl bg-surface-900/60 border border-primary-500/10">
+                  <p className="text-xl font-bold text-surface-50">
                     {correctHighlights}/{scenario.totalFallacies}
                   </p>
-                  <p className="text-xs text-surface-200/50">
+                  <p className="text-[11px] text-surface-200/50">
                     Falasi Ditemukan
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-2 text-left mb-6">
+              <div className="space-y-1.5 text-left mb-6 text-xs">
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface-900/40">
-                  <span className="text-xs text-surface-200/60">
-                    Grafik Terungkap
+                  <span className="text-surface-200/60">
+                    Grafik Baseline 0
                   </span>
                   <span
-                    className={`text-xs font-medium ${
+                    className={`font-semibold ${
                       graphDiscovered ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {graphDiscovered ? "✅ Ya" : "❌ Tidak"}
+                    {graphDiscovered ? "✅ Terbongkar" : "❌ Luput"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface-900/40">
-                  <span className="text-xs text-surface-200/60">
-                    Pencarian Dilakukan
+                  <span className="text-surface-200/60">
+                    Pencarian Mock Reverse
                   </span>
-                  <span className="text-xs font-medium text-primary-300">
-                    {searchCount}x
+                  <span className="font-semibold text-primary-300">
+                    {searchCount}x penelusuran
                   </span>
                 </div>
                 <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-surface-900/40">
-                  <span className="text-xs text-surface-200/60">
-                    Bantuan AI
+                  <span className="text-surface-200/60">
+                    Bimbingan AI Sokratik
                   </span>
-                  <span className="text-xs font-medium text-accent-400">
-                    {sokraticCount}x
+                  <span className="font-semibold text-accent-400">
+                    {sokraticCount}x interaksi
                   </span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2.5">
                 <button
                   onClick={() => setShowResults(false)}
-                  className="flex-1 btn-secondary text-sm"
+                  className="btn-secondary text-xs !py-2.5 flex-1"
                 >
-                  Kembali
+                  Tutup Hasil
                 </button>
-                <Link href="/dashboard" className="flex-1 btn-primary text-sm text-center">
-                  <span>Lihat Dashboard</span>
+                <Link
+                  href="/dashboard"
+                  className="btn-primary text-xs !py-2.5 flex-1 flex items-center justify-center gap-1.5"
+                >
+                  <span>Lihat Dashboard Mandiri</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

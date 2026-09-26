@@ -56,6 +56,8 @@ export interface Scenario {
   searchDatabase: SearchEntry[];
   totalFallacies: number;
   sokraticHints: string[];
+  isAiGenerated?: boolean;
+  createdAt?: number;
 }
 
 export interface ScenariosData {
@@ -63,9 +65,14 @@ export interface ScenariosData {
 }
 
 export interface StudentScore {
+  id?: string;
   sessionId: string;
   scenarioId: string;
   studentName: string;
+  userId?: string;
+  school?: string;
+  grade?: string;
+  studentIdNumber?: string;
   timestamp: number;
   highlights: HighlightScore[];
   graphDiscovered: boolean;
@@ -83,4 +90,16 @@ export interface HighlightScore {
   correctType: string;
   isCorrect: boolean;
   paragraphId: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  school: string;
+  grade: string;
+  studentIdNumber: string;
+  bio: string;
+  createdAt: number;
+  updatedAt: number;
 }

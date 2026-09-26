@@ -8,6 +8,8 @@ import {
   Sparkles,
   Target,
   ChevronDown,
+  BarChart3,
+  Users,
 } from "lucide-react";
 
 export default function Hero() {
@@ -77,15 +79,20 @@ export default function Hero() {
           transition={{ duration: 0.6, delay: 0.6 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
         >
-          <Link href="/sandbox" className="btn-primary text-lg flex items-center gap-2 !px-8 !py-4">
-            <span className="flex items-center gap-2">
+          <Link href="/sandbox" className="btn-primary text-base sm:text-lg flex items-center gap-2 !px-7 sm:!px-8 !py-3.5 sm:!py-4">
+            <span className="flex items-center gap-2 font-semibold">
               <Target className="w-5 h-5" />
               Mulai Investigasi
               <ArrowRight className="w-5 h-5" />
             </span>
           </Link>
-          <Link href="/dashboard" className="btn-secondary text-lg flex items-center gap-2 !px-8 !py-4">
-            Dashboard Pengajar
+          <Link href="/dashboard" className="btn-secondary text-base sm:text-lg flex items-center gap-2 !px-6 sm:!px-8 !py-3.5 sm:!py-4">
+            <BarChart3 className="w-5 h-5 text-primary-400" />
+            <span>Dashboard Pelajar</span>
+          </Link>
+          <Link href="/data-siswa" className="btn-secondary text-base sm:text-lg flex items-center gap-2 !px-6 sm:!px-8 !py-3.5 sm:!py-4 border-cyan-500/30 hover:border-cyan-400 text-cyan-300 hover:text-cyan-200">
+            <Users className="w-5 h-5 text-cyan-400" />
+            <span>Semua Data Siswa</span>
           </Link>
         </motion.div>
 
