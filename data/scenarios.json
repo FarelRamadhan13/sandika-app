@@ -1,0 +1,218 @@
+{
+  "scenarios": [
+    {
+      "id": "scenario-1",
+      "title": "Penemuan Revolusioner: Suhu Global Turun Drastis dalam 5 Tahun Terakhir",
+      "category": "Sains & Lingkungan",
+      "difficulty": "Menengah",
+      "article": {
+        "headline": "EKSKLUSIF: Penelitian Terbaru Ungkap Suhu Bumi Menurun Tajam, Pemanasan Global Dipertanyakan",
+        "source": "Portal Berita Nusantara Digital",
+        "author": "Redaksi PBN",
+        "date": "15 September 2026",
+        "imageCaption": "Grafik suhu rata-rata global yang menunjukkan tren penurunan signifikan (Sumber: Institut Klimatologi Nusantara)",
+        "paragraphs": [
+          {
+            "id": "p1",
+            "text": "Jakarta — Sebuah penelitian terbaru yang dipublikasikan oleh Institut Klimatologi Nusantara (IKN) mengungkapkan fakta mengejutkan: suhu rata-rata global telah mengalami penurunan signifikan dalam kurun waktu lima tahun terakhir. Temuan ini secara langsung menantang narasi pemanasan global yang selama ini didengungkan oleh komunitas ilmiah internasional.",
+            "fallacies": [
+              {
+                "text": "suhu rata-rata global telah mengalami penurunan signifikan dalam kurun waktu lima tahun terakhir",
+                "type": "cherry-picking",
+                "explanation": "Mengambil hanya data 5 tahun terakhir dari tren jangka panjang yang jauh lebih luas. Variasi jangka pendek tidak mewakili tren iklim keseluruhan."
+              }
+            ]
+          },
+          {
+            "id": "p2",
+            "text": "\"Data kami menunjukkan penurunan suhu sebesar 0,3 derajat Celcius dari tahun 2021 hingga 2026. Ini adalah bukti kuat bahwa narasi pemanasan global perlu ditinjau ulang secara fundamental,\" ujar Prof. Dr. Andi Pratama, Kepala Pusat Riset IKN sekaligus pakar klimatologi dari Universitas Nusantara, dalam konferensi pers yang digelar Selasa lalu.",
+            "fallacies": [
+              {
+                "text": "Prof. Dr. Andi Pratama, Kepala Pusat Riset IKN sekaligus pakar klimatologi dari Universitas Nusantara",
+                "type": "appeal-to-authority",
+                "explanation": "Mengutip otoritas yang tidak dapat diverifikasi. Institusi dan professor ini tidak terdaftar di database akademik manapun."
+              }
+            ]
+          },
+          {
+            "id": "p3",
+            "text": "Grafik yang dipresentasikan dalam konferensi tersebut menunjukkan kurva penurunan yang sangat mencolok. Data dikumpulkan dari 47 stasiun cuaca di seluruh Indonesia dan menunjukkan tren yang konsisten. Para ilmuwan yang selama ini meneriakkan pemanasan global tampaknya terlalu sibuk mencari pendanaan riset daripada mencari kebenaran sejati.",
+            "fallacies": [
+              {
+                "text": "Para ilmuwan yang selama ini meneriakkan pemanasan global tampaknya terlalu sibuk mencari pendanaan riset daripada mencari kebenaran sejati",
+                "type": "ad-hominem",
+                "explanation": "Menyerang motivasi dan karakter ilmuwan lain daripada membantah argumen ilmiah mereka secara substansial."
+              }
+            ]
+          },
+          {
+            "id": "p4",
+            "text": "Lebih lanjut, Prof. Pratama menjelaskan bahwa penurunan suhu ini berkorelasi dengan meningkatnya jumlah pohon yang ditanam dalam program penghijauan nasional. \"Sejak program Tanam Sejuta Pohon diluncurkan pada 2022, kita melihat efek langsung pada suhu global. Ini membuktikan bahwa penghijauan adalah solusi tunggal yang kita butuhkan,\" tambahnya.",
+            "fallacies": [
+              {
+                "text": "penurunan suhu ini berkorelasi dengan meningkatnya jumlah pohon yang ditanam dalam program penghijauan nasional",
+                "type": "false-cause",
+                "explanation": "Mengasumsikan hubungan sebab-akibat hanya dari korelasi temporal. Penghijauan lokal tidak dapat secara langsung menurunkan suhu rata-rata global."
+              },
+              {
+                "text": "penghijauan adalah solusi tunggal yang kita butuhkan",
+                "type": "hasty-generalization",
+                "explanation": "Menyederhanakan masalah kompleks perubahan iklim menjadi satu solusi tunggal berdasarkan data yang sangat terbatas."
+              }
+            ]
+          },
+          {
+            "id": "p5",
+            "text": "Survei internal IKN juga mengungkapkan bahwa 89% responden masyarakat setuju bahwa pemanasan global telah berlebihan dibesar-besarkan oleh media. \"Rakyat sudah tahu kebenarannya. Hanya para elit akademisi yang masih bersikeras dengan teori usang mereka,\" kata Prof. Pratama, yang juga merupakan penerima Penghargaan Sains Nusantara tahun 2024.",
+            "fallacies": [
+              {
+                "text": "89% responden masyarakat setuju bahwa pemanasan global telah berlebihan dibesar-besarkan",
+                "type": "bandwagon",
+                "explanation": "Menggunakan opini mayoritas sebagai bukti kebenaran ilmiah. Konsensus publik tidak sama dengan bukti ilmiah."
+              },
+              {
+                "text": "Hanya para elit akademisi yang masih bersikeras dengan teori usang mereka",
+                "type": "straw-man",
+                "explanation": "Mendistorsi posisi ilmiah sebagai 'teori usang elit' untuk membuatnya lebih mudah diserang."
+              }
+            ]
+          },
+          {
+            "id": "p6",
+            "text": "Sebagaimana dikutip dari laporan IKN, \"Seluruh data peer-reviewed menunjukkan konsistensi penurunan.\" Namun, perlu dicatat bahwa kutipan lengkap dari laporan tersebut sebenarnya berbunyi: \"Seluruh data peer-reviewed menunjukkan konsistensi penurunan pada periode tertentu yang dipilih, namun tren jangka panjang tetap menunjukkan peningkatan suhu global secara signifikan.\"",
+            "fallacies": [
+              {
+                "text": "Seluruh data peer-reviewed menunjukkan konsistensi penurunan",
+                "type": "bias-kutipan",
+                "explanation": "Mengutip secara tidak lengkap. Bagian penting yang menyatakan tren jangka panjang tetap naik sengaja dihilangkan."
+              }
+            ]
+          }
+        ]
+      },
+      "graphData": {
+        "title": "Suhu Rata-rata Global (°C)",
+        "misleadingYMin": 14.5,
+        "misleadingYMax": 15.1,
+        "correctYMin": 0,
+        "correctYMax": 30,
+        "data": [
+          { "year": "2017", "temp": 14.85 },
+          { "year": "2018", "temp": 14.89 },
+          { "year": "2019", "temp": 14.92 },
+          { "year": "2020", "temp": 14.95 },
+          { "year": "2021", "temp": 14.98 },
+          { "year": "2022", "temp": 14.93 },
+          { "year": "2023", "temp": 14.88 },
+          { "year": "2024", "temp": 14.82 },
+          { "year": "2025", "temp": 14.78 },
+          { "year": "2026", "temp": 14.68 }
+        ]
+      },
+      "searchDatabase": [
+        {
+          "keywords": ["Prof. Andi Pratama", "Andi Pratama", "Prof. Dr. Andi Pratama"],
+          "results": [
+            {
+              "title": "Direktori Akademik Universitas Nusantara",
+              "source": "universitas-nusantara.ac.id",
+              "snippet": "Pencarian untuk 'Prof. Dr. Andi Pratama' tidak menemukan hasil yang cocok dalam direktori dosen aktif maupun emeritus Universitas Nusantara.",
+              "type": "debunk",
+              "credibility": "tinggi"
+            },
+            {
+              "title": "Verifikasi Gelar Akademik - Dikti",
+              "source": "pddikti.kemdiktisains.go.id",
+              "snippet": "Tidak ditemukan catatan gelar profesoral atas nama 'Andi Pratama' di bidang klimatologi atau ilmu lingkungan di database PDDIKTI.",
+              "type": "debunk",
+              "credibility": "tinggi"
+            }
+          ]
+        },
+        {
+          "keywords": ["Institut Klimatologi Nusantara", "IKN klimatologi"],
+          "results": [
+            {
+              "title": "Daftar Lembaga Riset Terakreditasi Indonesia",
+              "source": "ristekdikti.go.id",
+              "snippet": "Institut Klimatologi Nusantara (IKN) tidak terdaftar sebagai lembaga riset terakreditasi di bawah Kementerian Riset, Teknologi, dan Pendidikan Tinggi.",
+              "type": "debunk",
+              "credibility": "tinggi"
+            },
+            {
+              "title": "BMKG - Informasi Iklim Resmi",
+              "source": "bmkg.go.id",
+              "snippet": "BMKG sebagai lembaga resmi menegaskan bahwa data suhu rata-rata global menunjukkan tren peningkatan jangka panjang yang konsisten dengan laporan IPCC.",
+              "type": "fact",
+              "credibility": "tinggi"
+            }
+          ]
+        },
+        {
+          "keywords": ["suhu global turun", "penurunan suhu global", "suhu bumi menurun"],
+          "results": [
+            {
+              "title": "NASA Global Climate Change - Vital Signs",
+              "source": "climate.nasa.gov",
+              "snippet": "Data NASA menunjukkan 10 tahun terpanas dalam sejarah pencatatan semuanya terjadi setelah tahun 2010. Tren pemanasan global terus berlanjut meskipun ada variasi tahunan.",
+              "type": "fact",
+              "credibility": "sangat-tinggi"
+            },
+            {
+              "title": "Variabilitas Iklim vs Tren Jangka Panjang - IPCC",
+              "source": "ipcc.ch",
+              "snippet": "Fluktuasi suhu jangka pendek (3-5 tahun) adalah normal dan tidak mewakili perubahan tren iklim. Cherry-picking periode singkat adalah taktik umum misinformasi iklim.",
+              "type": "fact",
+              "credibility": "sangat-tinggi"
+            }
+          ]
+        },
+        {
+          "keywords": ["Penghargaan Sains Nusantara", "penghargaan sains 2024"],
+          "results": [
+            {
+              "title": "Daftar Penerima Penghargaan Sains Indonesia",
+              "source": "brin.go.id",
+              "snippet": "Tidak ada catatan 'Penghargaan Sains Nusantara' dalam arsip penghargaan ilmiah nasional. Penghargaan sains resmi dikelola oleh BRIN.",
+              "type": "debunk",
+              "credibility": "tinggi"
+            }
+          ]
+        },
+        {
+          "keywords": ["Tanam Sejuta Pohon", "program penghijauan 2022"],
+          "results": [
+            {
+              "title": "Evaluasi Program Penghijauan Nasional - KLHK",
+              "source": "menlhk.go.id",
+              "snippet": "Program penghijauan nasional berdampak positif pada ekosistem lokal, namun KLHK menegaskan bahwa program ini tidak dirancang untuk dan tidak mampu mempengaruhi suhu rata-rata global secara terukur.",
+              "type": "context",
+              "credibility": "tinggi"
+            }
+          ]
+        },
+        {
+          "keywords": ["pemanasan global hoax", "pemanasan global berlebihan"],
+          "results": [
+            {
+              "title": "Konsensus Ilmiah tentang Perubahan Iklim",
+              "source": "nature.com",
+              "snippet": "Lebih dari 97% ilmuwan iklim setuju bahwa pemanasan global disebabkan oleh aktivitas manusia, berdasarkan meta-analisis ribuan studi peer-reviewed.",
+              "type": "fact",
+              "credibility": "sangat-tinggi"
+            }
+          ]
+        }
+      ],
+      "totalFallacies": 8,
+      "sokraticHints": [
+        "Perhatikan rentang waktu data yang digunakan. Apakah 5 tahun cukup untuk menyimpulkan tren iklim jangka panjang?",
+        "Coba periksa apakah Prof. Dr. Andi Pratama benar-benar ada. Apa yang terjadi jika sumber otoritasnya tidak valid?",
+        "Lihat grafik dengan lebih teliti. Dari angka berapa sumbu Y dimulai? Apa yang terjadi jika kita mulai dari nol?",
+        "Apakah komentar tentang motivasi ilmuwan lain relevan dengan data yang dipresentasikan?",
+        "Dapatkah penghijauan lokal benar-benar mempengaruhi suhu rata-rata seluruh planet? Apa logikanya?",
+        "Perhatikan kutipan di paragraf terakhir. Apakah kutipan tersebut lengkap?"
+      ]
+    }
+  ]
+}
