@@ -384,12 +384,12 @@ export default function DashboardPage() {
         >
           <div className="absolute top-0 right-0 w-80 h-80 bg-primary-500/5 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <h2 className="text-lg font-bold text-surface-50 flex items-center gap-2">
-              <IdCard className="w-5 h-5 text-primary-400" />
+              <IdCard className="w-5 h-5 text-primary-400 shrink-0" />
               Data Pribadi Siswa (Tersinkronisasi Firebase)
             </h2>
-            <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400">
+            <span className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 self-start sm:self-auto shrink-0">
               <CheckCircle2 className="w-3.5 h-3.5" />
               Cloud Firestore Aktif
             </span>
@@ -561,14 +561,14 @@ export default function DashboardPage() {
             className="glass-card rounded-2xl p-6 lg:col-span-2 flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <h3 className="text-lg font-bold text-surface-50 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary-400" />
+                  <TrendingUp className="w-5 h-5 text-primary-400 shrink-0" />
                   Pencapaian & Pemanfaatan Alat Investigasi
                 </h3>
                 <Link
                   href="/data-siswa"
-                  className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 font-medium transition-colors"
+                  className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 font-medium transition-colors shrink-0"
                 >
                   <Users className="w-3.5 h-3.5" />
                   Bandingkan dengan Kelas
@@ -703,10 +703,10 @@ export default function DashboardPage() {
           transition={{ delay: 0.25 }}
           className="glass-card rounded-2xl p-6"
         >
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
               <h3 className="text-lg font-bold text-surface-50 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-cyan-400" />
+                <Clock className="w-5 h-5 text-cyan-400 shrink-0" />
                 Riwayat Sesi Investigasi Saya
               </h3>
               <p className="text-xs text-surface-200/50 mt-0.5">
@@ -715,7 +715,7 @@ export default function DashboardPage() {
             </div>
 
             {scores.length > 0 && (
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-500/10 text-primary-300 border border-primary-500/20">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-500/10 text-primary-300 border border-primary-500/20 self-start sm:self-auto shrink-0">
                 {scores.length} Sesi Terdata
               </span>
             )}

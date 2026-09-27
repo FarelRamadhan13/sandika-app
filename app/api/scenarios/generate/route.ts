@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import type { Scenario } from "@/lib/types";
 
+// Allow up to 60 seconds for Gemini AI scenario generation on Vercel
+export const maxDuration = 60;
+
 const FALLACY_LIST = [
   "cherry-picking",
   "ad-hominem",

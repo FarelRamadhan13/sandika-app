@@ -8,9 +8,16 @@ function getServiceAccount(): ServiceAccount | undefined {
   // First try environment variable (for Vercel deployment)
   if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     try {
-      return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY) as ServiceAccount;
-    } catch {
-      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY env var");
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+      // Support both raw JSON and base64-encoded JSON
+      const jsonStr = raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf-8");
+      const parsed = JSON.parse(jsonStr);
+      if (parsed.private_key) {
+        parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+      }
+      return parsed as ServiceAccount;
+    } catch (e) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY env var:", e);
     }
   }
 
@@ -18,7 +25,11 @@ function getServiceAccount(): ServiceAccount | undefined {
   try {
     const credPath = path.join(process.cwd(), "credentials.json");
     const credFile = readFileSync(credPath, "utf-8");
-    return JSON.parse(credFile) as ServiceAccount;
+    const parsed = JSON.parse(credFile);
+    if (parsed.private_key) {
+      parsed.private_key = parsed.private_key.replace(/\\n/g, "\n");
+    }
+    return parsed as ServiceAccount;
   } catch {
     console.warn("No Firebase credentials found. Some features may not work.");
     return undefined;

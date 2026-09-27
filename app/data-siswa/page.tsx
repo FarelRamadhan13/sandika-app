@@ -183,7 +183,7 @@ export default function DataSiswaPage() {
       {/* Header */}
       <div className="glass-strong border-b border-primary-500/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link
                 href="/dashboard"
@@ -193,7 +193,7 @@ export default function DataSiswaPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-surface-50 flex items-center gap-2">
-                  <Users className="w-6 h-6 text-primary-400" />
+                  <Users className="w-6 h-6 text-primary-400 shrink-0" />
                   Data Seluruh Siswa
                 </h1>
                 <p className="text-sm text-surface-200/50 mt-1">
@@ -203,7 +203,7 @@ export default function DataSiswaPage() {
             </div>
             <button
               onClick={fetchScores}
-              className="btn-secondary text-sm flex items-center gap-2"
+              className="btn-secondary text-sm flex items-center gap-2 self-start sm:self-auto shrink-0"
             >
               <RefreshCw className="w-4 h-4" />
               Refresh Data

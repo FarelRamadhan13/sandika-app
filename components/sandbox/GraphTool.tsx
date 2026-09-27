@@ -49,8 +49,12 @@ export default function GraphTool({ graphConfig, onDiscovered }: GraphToolProps)
 
   // Extract unit from title if available, e.g. "Suhu Rata-rata Global (°C)" -> "°C"
   const unitMatch = graphConfig.title.match(/\(([^)]+)\)/);
-  const unit = unitMatch ? unitMatch[1] : "";
-  const unitSuffix = unit ? ` ${unit}` : "";
+  const rawUnit = unitMatch ? unitMatch[1] : "";
+  // If unit is short (like °C or %), we can show it on tick. Otherwise keep tick numeric to avoid wrapping/overlap
+  const isShortUnit = rawUnit.length <= 3;
+  const tickUnitSuffix = isShortUnit && rawUnit ? ` ${rawUnit}` : "";
+  const tooltipUnitSuffix = rawUnit ? ` ${rawUnit}` : "";
+  const unitSuffix = rawUnit ? ` ${rawUnit}` : "";
   const cleanTitle = graphConfig.title.replace(/\s*\([^)]*\)/, "").trim() || "Nilai";
 
   const firstPoint = graphConfig.data[0];
@@ -66,17 +70,17 @@ export default function GraphTool({ graphConfig, onDiscovered }: GraphToolProps)
   return (
     <div className="h-full flex flex-col overflow-y-auto pr-1 space-y-3">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between gap-2">
-        <h3 className="text-xs sm:text-sm font-semibold text-surface-200 flex items-center gap-1.5 truncate">
-          <span>📊</span>
-          <span className="truncate">{graphConfig.title}</span>
+      <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h3 className="text-xs sm:text-sm font-semibold text-surface-200 flex items-center gap-1.5 leading-snug">
+          <span className="shrink-0">📊</span>
+          <span className="line-clamp-2 sm:line-clamp-1">{graphConfig.title}</span>
         </h3>
         <button
           onClick={handleReveal}
-          className={`shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+          className={`shrink-0 self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shadow-sm ${
             isRevealed
-              ? "bg-green-500/15 text-green-400 border border-green-500/20 hover:bg-green-500/25"
-              : "bg-primary-500/15 text-primary-400 border border-primary-500/20 hover:bg-primary-500/25"
+              ? "bg-green-500/20 text-green-300 border border-green-500/30 hover:bg-green-500/30"
+              : "bg-primary-500/20 text-primary-300 border border-primary-500/30 hover:bg-primary-500/30"
           }`}
         >
           {isRevealed ? (
@@ -103,7 +107,7 @@ export default function GraphTool({ graphConfig, onDiscovered }: GraphToolProps)
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={graphConfig.data}
-              margin={{ top: 8, right: 12, left: -12, bottom: 0 }}
+              margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
             >
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -132,9 +136,10 @@ export default function GraphTool({ graphConfig, onDiscovered }: GraphToolProps)
               <YAxis
                 domain={[yMin, yMax]}
                 stroke="rgba(148,163,184,0.5)"
-                fontSize={11}
+                fontSize={10}
+                width={36}
                 tickLine={false}
-                tickFormatter={(value: number) => `${value}${unitSuffix}`}
+                tickFormatter={(value: number) => `${value}${tickUnitSuffix}`}
               />
               <Tooltip
                 contentStyle={{
@@ -144,7 +149,7 @@ export default function GraphTool({ graphConfig, onDiscovered }: GraphToolProps)
                   color: "#f1f5f9",
                   fontSize: "12px",
                 }}
-                formatter={(value) => [`${value}${unitSuffix}`, cleanTitle]}
+                formatter={(value) => [`${value}${tooltipUnitSuffix}`, cleanTitle]}
               />
               <Area
                 type="monotone"

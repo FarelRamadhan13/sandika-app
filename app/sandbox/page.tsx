@@ -38,6 +38,9 @@ import {
   AlertCircle,
   X,
   Compass,
+  Newspaper,
+  Wrench,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -101,7 +104,10 @@ export default function SandboxPage() {
   );
   const [selectedScenarioIndex, setSelectedScenarioIndex] = useState(0);
   const [isLoadingScenarios, setIsLoadingScenarios] = useState(false);
-  const [isScenarioSelectorOpen, setIsScenarioSelectorOpen] = useState(true);
+  const [isScenarioSelectorOpen, setIsScenarioSelectorOpen] = useState(false);
+  const [mobileActiveView, setMobileActiveView] = useState<"article" | "tools">(
+    "article"
+  );
 
   // Active scenario
   const scenario: Scenario =
@@ -131,6 +137,8 @@ export default function SandboxPage() {
   const [sokraticCount, setSokraticCount] = useState(0);
   const [startTime, setStartTime] = useState(Date.now());
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
+  const [sessionKey, setSessionKey] = useState(0);
 
   // Modals state
   const [showPersonalDataModal, setShowPersonalDataModal] = useState(false);
@@ -197,14 +205,14 @@ export default function SandboxPage() {
     }
   }, [user]);
 
-  // Timer - only run when student is authenticated
+  // Timer - only run when student is authenticated and timer is active
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isTimerRunning) return;
     const interval = setInterval(() => {
       setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
     return () => clearInterval(interval);
-  }, [startTime, user]);
+  }, [startTime, user, isTimerRunning]);
 
   // Listen for classification events from ArticlePanel
   useEffect(() => {
@@ -249,14 +257,19 @@ export default function SandboxPage() {
 
   // Handler to switch selected scenario
   const handleSelectScenario = (index: number) => {
+    setIsScenarioSelectorOpen(false);
     if (index === selectedScenarioIndex) return;
     setSelectedScenarioIndex(index);
     setHighlights([]);
     setGraphDiscovered(false);
     setSearchCount(0);
     setSokraticCount(0);
-    setStartTime(Date.now());
+    const now = Date.now();
+    setStartTime(now);
     setElapsedTime(0);
+    setIsTimerRunning(true);
+    setSessionKey((prev) => prev + 1);
+    setMobileActiveView("article");
   };
 
   // Handler to generate new scenario via Gemini AI API
@@ -290,8 +303,11 @@ export default function SandboxPage() {
         setGraphDiscovered(false);
         setSearchCount(0);
         setSokraticCount(0);
-        setStartTime(Date.now());
+        const now = Date.now();
+        setStartTime(now);
         setElapsedTime(0);
+        setIsTimerRunning(true);
+        setSessionKey((prev) => prev + 1);
         setIsGeneratorOpen(false);
         setCustomPrompt("");
       } else {
@@ -345,15 +361,37 @@ export default function SandboxPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
+  // Reset sandbox completely
+  const handleResetSandbox = () => {
+    setShowResults(false);
+    setHighlights([]);
+    setGraphDiscovered(false);
+    setSearchCount(0);
+    setSokraticCount(0);
+    const now = Date.now();
+    setStartTime(now);
+    setElapsedTime(0);
+    setIsTimerRunning(true);
+    setSessionKey((prev) => prev + 1);
+    setActiveTab("graph");
+    setMobileActiveView("article");
+  };
+
   // Save score and personal data to Firebase
-  const commitSaveToFirebase = async (dataToSave: {
-    studentName: string;
-    school: string;
-    grade: string;
-    studentIdNumber: string;
-    bio: string;
-  }) => {
+  const commitSaveToFirebase = async (
+    dataToSave: {
+      studentName: string;
+      school: string;
+      grade: string;
+      studentIdNumber: string;
+      bio: string;
+    },
+    forcedElapsedTime?: number
+  ) => {
     setIsSaving(true);
+    const timeToSave =
+      forcedElapsedTime !== undefined ? forcedElapsedTime : elapsedTime;
+
     try {
       if (user?.uid) {
         await fetch("/api/user/profile", {
@@ -396,7 +434,7 @@ export default function SandboxPage() {
           totalScore,
           maxScore,
           accuracy,
-          completionTimeSeconds: elapsedTime,
+          completionTimeSeconds: timeToSave,
         }),
       });
     } catch (err) {
@@ -407,6 +445,11 @@ export default function SandboxPage() {
   };
 
   const handleFinish = async () => {
+    // 1. Hentikan waktu seketika saat tombol selesai ditekan
+    setIsTimerRunning(false);
+    const finalElapsed = Math.floor((Date.now() - startTime) / 1000);
+    setElapsedTime(finalElapsed);
+
     const hasPersonalDataInFirebase = Boolean(
       userProfile?.school &&
         userProfile?.grade &&
@@ -414,13 +457,16 @@ export default function SandboxPage() {
     );
 
     if (hasPersonalDataInFirebase && userProfile) {
-      await commitSaveToFirebase({
-        studentName: userProfile.displayName || user?.displayName || "",
-        school: userProfile.school || "",
-        grade: userProfile.grade || "",
-        studentIdNumber: userProfile.studentIdNumber || "",
-        bio: userProfile.bio || "",
-      });
+      await commitSaveToFirebase(
+        {
+          studentName: userProfile.displayName || user?.displayName || "",
+          school: userProfile.school || "",
+          grade: userProfile.grade || "",
+          studentIdNumber: userProfile.studentIdNumber || "",
+          bio: userProfile.bio || "",
+        },
+        finalElapsed
+      );
       setShowResults(true);
     } else {
       setShowPersonalDataModal(true);
@@ -429,7 +475,7 @@ export default function SandboxPage() {
 
   const handlePersonalDataSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await commitSaveToFirebase(personalFormData);
+    await commitSaveToFirebase(personalFormData, elapsedTime);
     setShowPersonalDataModal(false);
     setShowResults(true);
   };
@@ -488,47 +534,121 @@ export default function SandboxPage() {
   return (
     <div className="min-h-screen pt-16 md:pt-20 bg-surface-950 pb-12">
       {/* Top Bar with Timer, Score & Actions */}
-      <div className="sticky top-16 md:top-20 z-30 bg-surface-950 border-b border-primary-500/20 shadow-lg shadow-black/40">
-        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <Link
-              href="/"
-              className="p-1.5 rounded-lg hover:bg-primary-500/10 transition-colors shrink-0"
-              title="Kembali ke Beranda"
-            >
-              <ChevronLeft className="w-4 h-4 text-surface-200/60" />
-            </Link>
+      <div className="sticky top-16 md:top-20 z-30 bg-surface-950/95 backdrop-blur-md border-b border-primary-500/20 shadow-lg shadow-black/40">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          {/* Main row: Title & Primary Actions */}
+          <div className="flex items-center justify-between gap-2 md:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+              <Link
+                href="/"
+                className="p-1.5 rounded-lg hover:bg-primary-500/10 transition-colors shrink-0 text-surface-200/70 hover:text-surface-100"
+                title="Kembali ke Beranda"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Link>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-sm font-semibold text-surface-50 truncate max-w-xs sm:max-w-md md:max-w-lg">
-                  {scenario.title}
-                </h1>
-                {scenario.isAiGenerated && (
-                  <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5" />
-                    Gemini AI
-                  </span>
-                )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <h1 className="text-xs sm:text-sm font-semibold text-surface-50 truncate">
+                    {scenario.title}
+                  </h1>
+                  {scenario.isAiGenerated && (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Gemini
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-surface-200/50 mt-0.5 truncate hidden sm:block">
+                  {scenario.category} • Tingkat {scenario.difficulty} • {scenario.totalFallacies} Falasi Tersembunyi
+                </p>
               </div>
-              <p className="text-[10px] text-surface-200/50 mt-0.5">
-                {scenario.category} • Tingkat {scenario.difficulty} • {scenario.totalFallacies} Falasi Tersembunyi
-              </p>
+            </div>
+
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* Toggle Scenario Drawer Button */}
+              <button
+                onClick={() => setIsScenarioSelectorOpen(!isScenarioSelectorOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  isScenarioSelectorOpen
+                    ? "bg-primary-500/20 border-primary-500/40 text-primary-300"
+                    : "bg-surface-900 border-primary-500/15 text-surface-200 hover:text-surface-50"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5 text-primary-400" />
+                <span>Pilih Kasus</span>
+                {isScenarioSelectorOpen ? (
+                  <ChevronUp className="w-3 h-3 ml-0.5" />
+                ) : (
+                  <ChevronDown className="w-3 h-3 ml-0.5" />
+                )}
+              </button>
+
+              {/* Timer */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800/80 border border-primary-500/10">
+                <Clock className="w-3 h-3 text-primary-400" />
+                <span className="text-xs font-mono text-surface-200/80">
+                  {formatTime(elapsedTime)}
+                </span>
+              </div>
+
+              {/* Score */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800/80 border border-primary-500/10">
+                <Trophy className="w-3 h-3 text-amber-400" />
+                <span className="text-xs font-mono text-surface-200/80">
+                  {totalScore}/{maxScore}
+                </span>
+              </div>
+
+              {/* Finish button */}
+              <button
+                onClick={handleFinish}
+                disabled={isSaving}
+                className="btn-primary text-xs !py-2 !px-4"
+              >
+                <span className="flex items-center gap-1.5 font-semibold">
+                  {isSaving ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Target className="w-3 h-3" />
+                  )}
+                  Selesai
+                </span>
+              </button>
+            </div>
+
+            {/* Mobile Finish button on Row 1 */}
+            <div className="md:hidden shrink-0">
+              <button
+                onClick={handleFinish}
+                disabled={isSaving}
+                className="btn-primary text-xs !py-1.5 !px-3 shadow-md"
+              >
+                <span className="flex items-center gap-1 font-semibold">
+                  {isSaving ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Target className="w-3 h-3" />
+                  )}
+                  Selesai
+                </span>
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            {/* Toggle Scenario Drawer Button */}
+          {/* Row 2 on Mobile: Case Selector Button, Timer, Score */}
+          <div className="md:hidden flex items-center justify-between gap-1.5 mt-2 pt-2 border-t border-primary-500/10">
             <button
               onClick={() => setIsScenarioSelectorOpen(!isScenarioSelectorOpen)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-colors ${
                 isScenarioSelectorOpen
                   ? "bg-primary-500/20 border-primary-500/40 text-primary-300"
-                  : "bg-surface-900 border-primary-500/15 text-surface-200 hover:text-surface-50"
+                  : "bg-surface-900 border-primary-500/15 text-surface-200"
               }`}
             >
-              <Layers className="w-3.5 h-3.5 text-primary-400" />
-              <span className="hidden sm:inline">Pilih Kasus</span>
+              <Layers className="w-3 h-3 text-primary-400" />
+              <span>Kasus #{selectedScenarioIndex + 1}</span>
               {isScenarioSelectorOpen ? (
                 <ChevronUp className="w-3 h-3 ml-0.5" />
               ) : (
@@ -536,37 +656,23 @@ export default function SandboxPage() {
               )}
             </button>
 
-            {/* Timer */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800/80 border border-primary-500/10">
-              <Clock className="w-3 h-3 text-primary-400" />
-              <span className="text-xs font-mono text-surface-200/80">
-                {formatTime(elapsedTime)}
-              </span>
-            </div>
+            <div className="flex items-center gap-2">
+              {/* Timer Pill */}
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-800/90 border border-primary-500/15">
+                <Clock className="w-3 h-3 text-primary-400" />
+                <span className="text-[11px] font-mono text-surface-100 font-semibold">
+                  {formatTime(elapsedTime)}
+                </span>
+              </div>
 
-            {/* Score */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800/80 border border-primary-500/10">
-              <Trophy className="w-3 h-3 text-amber-400" />
-              <span className="text-xs font-mono text-surface-200/80">
-                {totalScore}/{maxScore}
-              </span>
+              {/* Score Pill */}
+              <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-surface-800/90 border border-primary-500/15">
+                <Trophy className="w-3 h-3 text-amber-400" />
+                <span className="text-[11px] font-mono text-surface-100 font-semibold">
+                  {totalScore}/{maxScore}
+                </span>
+              </div>
             </div>
-
-            {/* Finish button */}
-            <button
-              onClick={handleFinish}
-              disabled={isSaving}
-              className="btn-primary text-xs !py-2 !px-4"
-            >
-              <span className="flex items-center gap-1.5 font-semibold">
-                {isSaving ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Target className="w-3 h-3" />
-                )}
-                Selesai
-              </span>
-            </button>
           </div>
         </div>
       </div>
@@ -580,18 +686,18 @@ export default function SandboxPage() {
             exit={{ opacity: 0, height: 0 }}
             className="border-b border-primary-500/20 bg-surface-900 overflow-hidden shadow-inner"
           >
-            <div className="max-w-[1600px] mx-auto px-4 py-4">
-              <div className="flex items-center justify-between mb-3">
+            <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 sm:py-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mb-3">
                 <div className="flex items-center gap-2">
-                  <Compass className="w-4 h-4 text-cyan-400" />
+                  <Compass className="w-4 h-4 text-cyan-400 shrink-0" />
                   <h2 className="text-xs font-bold text-surface-100 uppercase tracking-wider">
-                    Pilih Studi Kasus Investigasi ({scenarios.length} Kasus Tersedia)
+                    Pilih Studi Kasus ({scenarios.length} Kasus Tersedia)
                   </h2>
                 </div>
 
                 <button
                   onClick={() => setIsGeneratorOpen(true)}
-                  className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center gap-1.5 bg-gradient-to-r from-purple-600 to-primary-600 hover:from-purple-500 hover:to-primary-500 shadow-sm"
+                  className="btn-primary text-xs !py-1.5 !px-3.5 flex items-center justify-center gap-1.5 bg-gradient-to-r from-purple-600 to-primary-600 hover:from-purple-500 hover:to-primary-500 shadow-sm self-stretch sm:self-auto"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Generate dengan Gemini AI</span>
@@ -682,20 +788,80 @@ export default function SandboxPage() {
         )}
       </AnimatePresence>
 
+      {/* Mobile Segmented Switcher (Artikel vs Alat Investigasi) */}
+      <div className="lg:hidden max-w-[1600px] mx-auto px-3 sm:px-4 pt-3 pb-1">
+        <div className="flex p-1 rounded-xl bg-surface-900 border border-primary-500/20 shadow-md">
+          <button
+            type="button"
+            onClick={() => setMobileActiveView("article")}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              mobileActiveView === "article"
+                ? "bg-primary-600 text-white shadow-sm"
+                : "text-surface-200/60 hover:text-surface-100"
+            }`}
+          >
+            <Newspaper className="w-3.5 h-3.5" />
+            <span>Artikel ({highlights.length} Sorotan)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileActiveView("tools")}
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              mobileActiveView === "tools"
+                ? "bg-gradient-to-r from-purple-600 to-primary-600 text-white shadow-sm"
+                : "text-surface-200/60 hover:text-surface-100"
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5" />
+            <span>Alat Investigasi</span>
+            {graphDiscovered && (
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Main Investigation Workspace */}
-      <div className="max-w-[1600px] mx-auto px-4 py-4 sm:py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+      <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-3 sm:py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-6 items-start">
           {/* Left: Article Panel */}
-          <div className="lg:col-span-3">
+          <div className={`lg:col-span-3 ${mobileActiveView === "tools" ? "hidden lg:block" : "block"}`}>
             <ArticlePanel
+              key={`article-${scenario.id}-${sessionKey}`}
               article={scenario.article}
               onTextSelect={handleTextSelect}
               highlights={highlights}
             />
+
+            {/* Mobile quick switch to tools */}
+            <div className="lg:hidden mt-4 pt-3 border-t border-primary-500/10">
+              <button
+                type="button"
+                onClick={() => setMobileActiveView("tools")}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600/20 to-primary-600/20 border border-primary-500/30 text-primary-200 font-semibold text-xs flex items-center justify-center gap-2 hover:bg-primary-500/30 transition-all"
+              >
+                <Wrench className="w-4 h-4 text-primary-400" />
+                <span>Buka Alat Investigasi (Grafik, Lacak, AI) &rarr;</span>
+              </button>
+            </div>
           </div>
 
           {/* Right: Tools Panel */}
-          <div className="lg:col-span-2 flex flex-col lg:sticky lg:top-[140px] lg:h-[calc(100vh-155px)] lg:min-h-[580px] min-h-0">
+          <div className={`lg:col-span-2 flex flex-col lg:sticky lg:top-[140px] lg:h-[calc(100vh-155px)] lg:min-h-[580px] min-h-0 ${
+            mobileActiveView === "article" ? "hidden lg:flex" : "flex"
+          }`}>
+            {/* Mobile quick switch back to article */}
+            <div className="lg:hidden mb-2.5">
+              <button
+                type="button"
+                onClick={() => setMobileActiveView("article")}
+                className="w-full py-2 px-3 rounded-xl bg-surface-900 border border-surface-700/60 text-surface-200 text-xs font-medium flex items-center justify-center gap-1.5 hover:bg-surface-800 transition-all"
+              >
+                <ChevronLeft className="w-3.5 h-3.5 text-surface-400" />
+                <span>Kembali Baca Teks Artikel</span>
+              </button>
+            </div>
+
             {/* Tabs */}
             <div className="shrink-0 flex gap-1 mb-2.5 p-1 rounded-xl bg-surface-900/50 border border-primary-500/10">
               {TABS.map((tab) => {
@@ -704,13 +870,12 @@ export default function SandboxPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-                      activeTab === tab.id ? "tab-active" : "tab-inactive"
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                      activeTab === tab.id ? "tab-active font-semibold shadow-sm" : "tab-inactive"
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.emoji}</span>
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
@@ -720,21 +885,21 @@ export default function SandboxPage() {
             <div className="tool-panel rounded-2xl p-3.5 sm:p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
               {activeTab === "graph" && (
                 <GraphTool
-                  key={`graph-${scenario.id}`}
+                  key={`graph-${scenario.id}-${sessionKey}`}
                   graphConfig={scenario.graphData}
                   onDiscovered={handleGraphDiscovered}
                 />
               )}
               {activeTab === "search" && (
                 <ReverseSearch
-                  key={`search-${scenario.id}`}
+                  key={`search-${scenario.id}-${sessionKey}`}
                   searchDatabase={scenario.searchDatabase}
                   onSearch={handleSearch}
                 />
               )}
               {activeTab === "chat" && (
                 <SokraticChat
-                  key={`chat-${scenario.id}`}
+                  key={`chat-${scenario.id}-${sessionKey}`}
                   scenario={scenario}
                   scenarioId={scenario.id}
                   hints={scenario.sokraticHints}
@@ -921,12 +1086,12 @@ export default function SandboxPage() {
       {/* MODAL 1: Input & Save Personal Data to Firebase */}
       <AnimatePresence>
         {showPersonalDataModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="glass-card rounded-2xl p-6 sm:p-8 max-w-lg w-full relative"
+              className="glass-card rounded-2xl p-4 sm:p-8 max-w-lg w-full relative max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shrink-0">
@@ -1041,7 +1206,11 @@ export default function SandboxPage() {
                 <div className="pt-2 flex items-center justify-between gap-3">
                   <button
                     type="button"
-                    onClick={() => setShowPersonalDataModal(false)}
+                    onClick={() => {
+                      setShowPersonalDataModal(false);
+                      setStartTime(Date.now() - elapsedTime * 1000);
+                      setIsTimerRunning(true);
+                    }}
                     className="btn-secondary text-xs !py-2.5 !px-4"
                   >
                     Kembali ke Sandbox
@@ -1074,19 +1243,19 @@ export default function SandboxPage() {
       {/* MODAL 2: Results Modal with Firebase Confirmation & Dashboard Link */}
       <AnimatePresence>
         {showResults && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", bounce: 0.2 }}
-              className="glass-card rounded-2xl p-6 sm:p-8 max-w-md w-full text-center"
+              className="glass-card rounded-2xl p-4 sm:p-8 max-w-md w-full text-center max-h-[90vh] overflow-y-auto"
             >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/20">
-                <Trophy className="w-8 h-8 text-white" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg shadow-primary-500/20">
+                <Trophy className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </div>
 
-              <h2 className="text-2xl font-bold text-surface-50 mb-1">
+              <h2 className="text-xl sm:text-2xl font-bold text-surface-50 mb-1">
                 Investigasi Selesai!
               </h2>
 
@@ -1098,24 +1267,26 @@ export default function SandboxPage() {
 
               {/* Student identification badge */}
               <div className="p-3 my-3 rounded-xl bg-surface-900/60 border border-primary-500/10 text-left text-xs">
-                <p className="font-semibold text-surface-100 flex items-center gap-1.5">
-                  <IdCard className="w-3.5 h-3.5 text-primary-400" />
-                  {personalFormData.studentName ||
-                    userProfile?.displayName ||
-                    user?.displayName ||
-                    "Investigator Siswa"}
+                <p className="font-semibold text-surface-100 flex items-center gap-1.5 truncate">
+                  <IdCard className="w-3.5 h-3.5 text-primary-400 shrink-0" />
+                  <span className="truncate">
+                    {personalFormData.studentName ||
+                      userProfile?.displayName ||
+                      user?.displayName ||
+                      "Investigator Siswa"}
+                  </span>
                 </p>
-                <div className="flex items-center gap-3 text-surface-200/60 mt-1">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-surface-200/60 mt-1">
                   {(personalFormData.school || userProfile?.school) && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="w-3 h-3" />
-                      {personalFormData.school || userProfile?.school}
+                    <span className="flex items-center gap-1 truncate max-w-full">
+                      <Building2 className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{personalFormData.school || userProfile?.school}</span>
                     </span>
                   )}
                   {(personalFormData.grade || userProfile?.grade) && (
-                    <span className="flex items-center gap-1">
-                      <GraduationCap className="w-3 h-3" />
-                      {personalFormData.grade || userProfile?.grade}
+                    <span className="flex items-center gap-1 shrink-0">
+                      <GraduationCap className="w-3 h-3 shrink-0" />
+                      <span>{personalFormData.grade || userProfile?.grade}</span>
                     </span>
                   )}
                 </div>
@@ -1185,7 +1356,7 @@ export default function SandboxPage() {
 
               <div className="flex flex-col sm:flex-row gap-2.5">
                 <button
-                  onClick={() => setShowResults(false)}
+                  onClick={handleResetSandbox}
                   className="btn-secondary text-xs !py-2.5 flex-1"
                 >
                   Tutup Hasil
